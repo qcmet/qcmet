@@ -1,0 +1,27 @@
+name: conda_env_metrics
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python==3.11.10
+  - ipykernel
+  - jupyter
+  - matplotlib
+  - numpy
+  - pylatexenc
+  - scipy
+  - seaborn
+  - qiskit=0.45.2
+  - qiskit-aer=0.13.2
+  - amazon-braket-sdk
+  - pygsti
+  - openfermion
+  - cirq-core
+  - cirq-ionq
+  - cvxopt
+  - cvxpy
+  - pip:
+    - pytket
+    - qiskit-nature
+    - qiskit-braket-provider==0.0.5
+    - oqc-qcaas-client

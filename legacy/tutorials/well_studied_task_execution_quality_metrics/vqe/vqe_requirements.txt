@@ -1,0 +1,2 @@
+qiskit-nature==0.7.2
+openfermion==1.6.1

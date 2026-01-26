@@ -1,0 +1,104 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "qcmet"
+dynamic = ["version"]
+description = "QCMet - a collection of benchmarks and metrics for quantum computers"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10"
+dependencies = [
+    "matplotlib>=3.10.3",
+    "numpy>=2.2.6",
+    "pandas>=2.3.0",
+    "qiskit>=1.2",
+    "qiskit-aer>=0.17.0",
+    "scipy>=1.15.3",
+    "openfermion>=1.7",
+    "pygsti",
+    "tqdm"
+]
+
+
+[project.optional-dependencies]
+docs = [
+    "sphinx>=7.0",
+    "sphinx-design>=0.6.0",
+    "pydata-sphinx-theme>=0.15.0",
+    "sphinx-autodoc-typehints>=1.25.0",
+    "myst-nb>=1.0.0",
+]
+pytest = [
+    "pytest>=8.4.1",
+    "pytest-xdist",
+    "pytest-cov",
+    "coverage",
+    "genbadge[coverage]",
+]
+lint = [
+    "ruff>=0.1.0",
+]
+dev = ['qcmet[pytest,lint]']
+
+
+
+
+[tool.ruff]
+line-length = 88
+exclude = ["tutorials", "_helpers"]
+
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "C","D"]
+ignore = ["E501", "D203", "D213"]
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint.pycodestyle]
+max-doc-length = 180
+
+[tool.hatch.version]
+path = "qcmet/__init__.py"
+
+
+
+[tool.pytest.ini_options]
+# Run tests in parallel
+addopts = [
+  "-n", "auto",
+  "--maxfail=1",
+  "--disable-warnings",
+  "--cov=qcmet",
+  "--cov-report=xml:coverage.xml",
+]
+testpaths = ["tests"]
+
+
+
+[tool.coverage.run]
+branch = true
+source = ["qcmet"]
+omit = [
+  "legacy/*",
+]
+
+[tool.coverage.report]
+# Patterns to exclude from report (not measured lines)
+exclude_lines = [
+  "pragma: no cover",
+  "if __name__ == \"__main__\":",
+]
+
+[tool.coverage.xml]
+# You can keep defaults; added here for clarity/expansion later
