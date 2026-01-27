@@ -44,6 +44,7 @@ class CycleBenchmarking(BaseBenchmark):
         config (dict): Configuration dictionary containing:
             - g_layer (QuantumCircuit): The gate layer/cycle to benchmark
             - repetitions_list (list): List of cycle repetition counts [m1, m2, ...]
+            - qubit_indices (list[int]): The qubit indices for routing. Defaults to None.
             - num_random_sequences (int): Number of random twirled sequences per Pauli
             - full_pauli_subspace (bool): Whether to use full Pauli subspace
             - subspace_size (int): Size of Pauli subspace if not using full
@@ -65,6 +66,7 @@ class CycleBenchmarking(BaseBenchmark):
         self,
         g_layer: QuantumCircuit,
         repetitions_list: list,
+        qubit_indices: list[int] = None,
         num_random_sequences: int = 10,
         full_pauli_subspace: bool = True,
         subspace_size: int | None = None,
@@ -79,6 +81,7 @@ class CycleBenchmarking(BaseBenchmark):
                 Must be a QuantumCircuit on n qubits.
             repetitions_list (list): List of cycle repetition counts to test.
                 Example: [2, 4, 8, 10]
+            qubit_indices (list[int]): The qubit indices for routing. Defaults to None.
             num_random_sequences (int, optional): Number of random Pauli-twirled
                 sequences per Pauli channel. Defaults to 10.
             full_pauli_subspace (bool, optional): Whether to use the full Pauli
@@ -102,13 +105,21 @@ class CycleBenchmarking(BaseBenchmark):
         # Get number of qubits from g_layer
         num_qubits = g_layer.num_qubits
 
-        super().__init__("CycleBenchmarking", qubits=num_qubits, save_path=save_path)
+        if qubit_indices is None:
+            qubit_indices = np.arange(0, num_qubits).tolist()
+
+        else:       
+            if len(qubit_indices) != num_qubits:
+                raise ValueError("number of qubit indices does not match number of qubits in g_layer")
+
+        super().__init__("CycleBenchmarking", qubits=qubit_indices, save_path=save_path)
 
         if fidelity_method not in ["fit", "ratio"]:
             raise ValueError("fidelity_method must be either 'fit' or 'ratio'")
 
         self.config["g_layer"] = g_layer
         self.config["repetitions_list"] = repetitions_list
+        self.config["qubit_indices"] = qubit_indices
         self.config["num_random_sequences"] = num_random_sequences
         self.config["full_pauli_subspace"] = full_pauli_subspace
         self.config["subspace_size"] = subspace_size
