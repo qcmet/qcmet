@@ -63,11 +63,9 @@ class InterleavedRB(BaseBenchmark):
         ]
 
         self.rb_experiment = CliffordRB(
-            m_list, circs_per_m, qubits, target_clifford=None, save_path=save_path
+            m_list, circs_per_m, qubits, target_clifford=None
         )
-        self.irb_experiment = CliffordRB(
-            m_list, circs_per_m, qubits, target_clifford, save_path
-        )
+        self.irb_experiment = CliffordRB(m_list, circs_per_m, qubits, target_clifford)
 
     def _generate_circuits(self):
         """Generate circuits for interleaved and non-interleaved Clifford randomised benchmarking.
