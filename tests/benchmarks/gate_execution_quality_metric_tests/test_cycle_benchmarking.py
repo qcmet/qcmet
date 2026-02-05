@@ -27,7 +27,7 @@ def simple_g_layer_2q():
     return qc
 
 
-def test_qubit_indices_not_match_g_layer(simple_g_layer_2q):
+def test_qubits_not_match_g_layer(simple_g_layer_2q):
     """Test that ValueError raised when qubits does not match g_layer qubits."""
     with pytest.raises(ValueError, match="number of qubits does not match number of qubits in g_layer"):
         qcm.CycleBenchmarking(simple_g_layer_2q,
