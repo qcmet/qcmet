@@ -16,6 +16,18 @@ from qiskit_aer.noise import (
 import qcmet as qcm
 
 
+@pytest.fixture
+def target_gate():
+    """Fixture (factory) to create a target gate instance."""
+
+    def circuit(qubits):
+        circ = QuantumCircuit(qubits)
+        circ.x(0)
+        return circ
+
+    return circuit
+
+
 def test_raise_error_no_target():
     """Verify that the ValueError is raised when no target_clifford is specified."""
     with pytest.raises(TypeError):
@@ -23,12 +35,10 @@ def test_raise_error_no_target():
 
 
 @pytest.mark.parametrize("qubits,identity", [(1, 2), (2, 4)])
-def test_circ_operator(qubits, identity):
+def test_circ_operator(qubits, identity, target_gate):
     """Verify that the total operations acting on InterleavedRB circuits are equal to the identity operator."""
-    circ = QuantumCircuit(qubits)
-    circ.x(0)
     experiment = qcm.InterleavedRB(
-        m_list=[10], circs_per_m=1, qubits=qubits, target_clifford=circ
+        m_list=[10], circs_per_m=1, qubits=qubits, target_clifford=target_gate(qubits)
     )
     experiment.generate_circuits()
     interleaved_circ = experiment.experiment_data[
@@ -42,12 +52,10 @@ def test_circ_operator(qubits, identity):
 
 
 @pytest.mark.parametrize("seq_length", [10, 50, 100])
-def test_num_target_gates(seq_length):
+def test_num_target_gates(seq_length, target_gate):
     """Verify that the number of target clifford gates is at least 50% of the total clifford gates."""
-    circ = QuantumCircuit(1)
-    circ.x(0)
     experiment = qcm.InterleavedRB(
-        m_list=[seq_length], circs_per_m=1, qubits=1, target_clifford=circ
+        m_list=[seq_length], circs_per_m=1, qubits=1, target_clifford=target_gate(1)
     )
     experiment.generate_circuits()
     interleaved_circ = experiment.experiment_data[
@@ -61,15 +69,13 @@ def test_num_target_gates(seq_length):
 
 
 @pytest.mark.parametrize("qubits", [1, 2])
-def test_analyze_noiseless(qubits):
+def test_analyze_noiseless(qubits, target_gate):
     """Verify that analyze() computes average and interleaved gate errors to be zero when running on noiseless device."""
-    circ = QuantumCircuit(qubits)
-    circ.x(0)
     experiment = qcm.InterleavedRB(
         m_list=[0, 20, 50, 100, 300, 500, 1000],
         circs_per_m=5,
         qubits=qubits,
-        target_clifford=circ,
+        target_clifford=target_gate(qubits),
     )
     experiment.generate_circuits()
     ideal_sim = qcm.IdealSimulator()
@@ -80,15 +86,13 @@ def test_analyze_noiseless(qubits):
 
 
 @pytest.mark.parametrize("qubits", [1, 2])
-def test_analyze_noisy(qubits):
+def test_analyze_noisy(qubits, target_gate):
     """Verify that at a given m, IRB p_surv < RB p_surv for at least 90% of all data points."""
-    circ = QuantumCircuit(qubits)
-    circ.x(0)
     experiment = qcm.InterleavedRB(
         m_list=[0, 20, 50, 100, 300, 500, 1000],
         circs_per_m=5,
         qubits=qubits,
-        target_clifford=circ,
+        target_clifford=target_gate(qubits),
     )
     experiment.generate_circuits()
     noisy_sim = qcm.NoisySimulator()
@@ -128,11 +132,25 @@ def test_result_with_known_error():
         target_clifford=circ,
     )
     experiment.generate_circuits()
-    noisy_sim = qcm.AerSimulator(
-        noise_model=all_gate_noise, seed_simulator=42
-    )
+    noisy_sim = qcm.AerSimulator(noise_model=all_gate_noise, seed_simulator=42)
     experiment.run(device=noisy_sim, num_shots=10000)
     experiment.analyze()
     assert np.isclose(
         float(experiment.result["InterleavedGateError"]), p_err * 1 / 2, rtol=0.1
     )
+
+
+def test_directory_structure_created(target_gate):
+    """Test creation of irb and rb instance subfolders."""
+    experiment = qcm.InterleavedRB(
+        m_list=[0],
+        circs_per_m=5,
+        qubits=1,
+        target_clifford=target_gate(1),
+        save_path=qcm.FileManager("test_bench", base_path="tmp_path"),
+    )
+
+    # Check expected subdirectories
+    for sub in ["rb", "irb"]:
+        p = experiment.file_manager.run_path / sub
+        assert p.exists() and p.is_dir()
