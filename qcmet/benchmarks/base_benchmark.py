@@ -285,7 +285,13 @@ class BaseBenchmark(ABC):
                 ) as file:
                     qasm3.dump(circ, file)
 
-    def run(self, device: BaseDevice = None, num_shots: int = 1024, max_circs_per_job=None, **kwargs):
+    def run(
+        self,
+        device: BaseDevice = None,
+        num_shots: int = 1024,
+        max_circs_per_job=None,
+        **kwargs,
+    ):
         """Run benchmark.
 
         If no device is provided, run_offline is executed which provides all necessary data to run benchmark offline in a saved
@@ -294,7 +300,7 @@ class BaseBenchmark(ABC):
         Args:
             device (BaseDevice, optional): Device to run benchmark on. Defaults to None.
             num_shots (int, optional): Number of measurements per circuit. Defaults to 1024.
-            max_circs_per_job (int, optional): Number of circuits to be submitted per job. This is for when 
+            max_circs_per_job (int, optional): Number of circuits to be submitted per job. This is for when
             benchmark requires more circuits than hardware can run in one job. Defaults to None.
             **kwargs (Dict[str, any]): Optional keyword arguments passed to device in _runtime_params.
 
@@ -520,7 +526,7 @@ class BaseBenchmark(ABC):
         self,
         device: BaseDevice,
         num_shots: int = 1024,
-        max_circs_per_job = None,
+        max_circs_per_job=None,
         axes: Optional[matplotlib.axes._axes.Axes] = None,
         **kwargs,
     ):
@@ -531,14 +537,19 @@ class BaseBenchmark(ABC):
         Args:
             device (BaseDevice): Device to run benchmark on.
             num_shots (int, optional): Number of measurements per circuit. Defaults to 1024.
-            max_circs_per_job (int, optional): Number of circuits to be submitted per job. This is for when 
+            max_circs_per_job (int, optional): Number of circuits to be submitted per job. This is for when
             benchmark requires more circuits than hardware can run in one job. Defaults to None.
             axes (matplotlib.axes._axes.Axes, optional): Plot will use axes if provided. Defaults to None.
             **kwargs (Dict[str, any]): Optional keyword arguments passed to device in _runtime_params.
 
         """
         self.generate_circuits()
-        self.run(device=device, num_shots=num_shots, max_circs_per_job=max_circs_per_job, **kwargs)
+        self.run(
+            device=device,
+            num_shots=num_shots,
+            max_circs_per_job=max_circs_per_job,
+            **kwargs,
+        )
         self.analyze()
         self.plot(axes=axes)
         return self.result

@@ -60,7 +60,7 @@ class AerSimulatorBase(QiskitDevice):
 
         Returns:
             dict | list[dict]: Measurement counts dictionary with bitstrings reversed,
-            either for a single circuits or a list of circuits.
+            either for a single circuit or a list of circuits.
 
         """
         t_circuits = self.passmanager.run(circuits)

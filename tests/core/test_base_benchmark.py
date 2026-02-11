@@ -88,7 +88,7 @@ class MaxJobsBenchmark(BaseBenchmark):
 
     def _run(self):
         return {}
-    
+
     def _analyze(self):
         return {"dummy": True}
 
@@ -379,5 +379,5 @@ def test_max_circs_per_job():
     experiment.generate_circuits()
     experiment.run(device=IdealSimulator(), num_shots=100, circs_per_job=1)
     assert len(experiment.experiment_data["circuit_measurements"])
-    assert experiment.experiment_data.loc[0,"circuit_measurements"]['0'] == 100
-    assert experiment.experiment_data.loc[1,"circuit_measurements"]['1'] == 100
+    assert experiment.experiment_data.loc[0, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[1, "circuit_measurements"]["1"] == 100

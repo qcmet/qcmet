@@ -8,8 +8,6 @@ device backends must implement to be compatible with BaseBenchmark.
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
-from qiskit import QuantumCircuit
-
 
 class BaseDevice(ABC):
     """Abstract base class for quantum devices in the QCMet framework.
