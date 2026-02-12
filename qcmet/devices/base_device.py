@@ -62,7 +62,7 @@ class BaseDevice(ABC):
         Args:
             circuits (QuantumCircuit | List[QuantumCircuit]): The circuit(s) to execute.
             num_shots (int, optional): Number of measurement shots. Defaults to 1024.
-            max_circs_per_job (int, optional): Number of circuits to be submitted per job. This is for when 
+            max_circs_per_job (int, optional): Maximum number of circuits to be submitted per job. This is for when 
             benchmark requires more circuits than hardware can run in one job. Defaults to None.
 
         Returns:
