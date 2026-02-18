@@ -14,6 +14,8 @@ from typing import Any, Dict
 
 import matplotlib.pyplot as plt
 import numpy as np
+import qiskit.qasm3 as qasm3
+from qiskit import QuantumCircuit
 from qiskit.circuit import Gate
 
 
@@ -201,6 +203,8 @@ class FileManager:
                 "gate_name": obj.name,
                 "gate_matrix": self._make_json_serializable(obj.to_matrix().tolist()),
             }
+        elif isinstance(obj, QuantumCircuit):
+            return qasm3.dumps(obj)
         elif isinstance(obj, list):
             return [self._make_json_serializable(item) for item in obj]
         else:
