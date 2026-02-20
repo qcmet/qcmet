@@ -83,7 +83,7 @@ html_theme = "pydata_sphinx_theme"
 html_static_path = ["_static"]
 
 html_theme_options = {
-    "gitlab_url": "https://gitlab.npl.co.uk/qc-metrics-and-benchmarks/qcmet",
+    "github_url": "https://github.com/qcmet/qcmet",
     "header_links_before_dropdown": 10,  # Show all main nav items
     "navbar_start": ["navbar-logo"],
     "navbar_center": ["navbar-nav"],
