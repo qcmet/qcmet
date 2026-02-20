@@ -137,11 +137,11 @@ class QFT(BaseBenchmark):
 
         return new_dict
 
-    def _exact_probs_from_random_initialization(self, rand_intial):
+    def _exact_probs_from_random_initialization(self, rand_initial):
         """Compute the exact probability distribution for a given QFT initialization.
 
         Args:
-            rand_intial (array-like): Sequence of bits representing the prepared state.
+            rand_initial (array-like): Sequence of bits representing the prepared state.
 
         Returns:
             np.ndarray: Probability vector of length 2**num_qubits with a single 1.0
@@ -149,7 +149,12 @@ class QFT(BaseBenchmark):
 
         """
         exact_probs = np.zeros(2**self.num_qubits)
-        exact_probs[int("".join(str(i) for i in rand_intial), 2) + 1] = 1
+        if (
+            int("".join(str(i) for i in rand_initial), 2) + 1
+        ) % 2**self.num_qubits == 0:
+            exact_probs[0] = 1
+        else:
+            exact_probs[int("".join(str(i) for i in rand_initial), 2) + 1] = 1
         return exact_probs
 
     def _analyze(self):

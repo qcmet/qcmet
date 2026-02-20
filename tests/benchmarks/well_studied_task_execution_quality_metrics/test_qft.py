@@ -43,6 +43,27 @@ def test_exact_probs_from_random_initialization():
     assert probs[6] == 1 
 
 
+@pytest.mark.parametrize("qubits", [(2), (3), (4)])
+def test_exact_probs_from_random_initialization_max_index(qubits):
+    """Confirm that _exact_probs_from_random_initialization is correct for rand_initial with highest index.
+      
+    It shoud produce an array of length 2**num_qubits, with the single '1' 
+    at the index matching the input bitstring + 1.
+    """
+    qft = QFT(qubits=qubits)
+    max_statevector = [1] * qubits
+
+    rand_init = np.array(max_statevector, dtype=int)
+
+    probs = qft._exact_probs_from_random_initialization(rand_init)
+    assert isinstance(probs, np.ndarray)
+    assert probs.shape == (2**qubits,)
+
+    # Only index 6 (int('101',2) + 1) should be 1
+    assert np.count_nonzero(probs) == 1
+    assert probs[0] == 1 
+
+
 def test_qft_inverse_round_trip():
     """Verify the inverse QFT circuit matches the inverse of the forward QFT circuit."""
     qft = QFT(qubits=3)
