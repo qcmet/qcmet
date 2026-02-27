@@ -143,8 +143,8 @@ class InterleavedRB(BaseBenchmark):
             "qubits": self.num_qubits,
             "alpha": alpha,
             "alpha_g": alpha_g,
-            "AverageGateError": "{:.5f}".format(self.avg_gate_err),
-            "InterleavedGateError": "{:.5f}".format(self.int_gate_err),
+            "AverageGateError": self.avg_gate_err,
+            "InterleavedGateError": self.int_gate_err,
             "RB_fit": self.rb_experiment.fit_result,
             "IRB_fit": self.irb_experiment.fit_result,
         }

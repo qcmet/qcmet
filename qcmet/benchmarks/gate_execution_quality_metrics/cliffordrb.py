@@ -50,9 +50,9 @@ class CliffordRB(BaseBenchmark):
             circs_per_m (int): The number of circuits generated for a given sequence length m.
             qubits (int | List[int]): The number of qubits as either a list of qubit
                 indices or int specifying number of qubits.
-            target_clifford (QuantumCircuit, optional): QuantumCircuit containing only the 
+            target_clifford (QuantumCircuit, optional): QuantumCircuit containing only the
                 target Clifford gate. This is utilised for Interleaved Clifford Randomised
-                Benchmarking. To run Interleaved Clifford Randomised Benchmarking, 
+                Benchmarking. To run Interleaved Clifford Randomised Benchmarking,
                 use 'InterleavedRB' Class.
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
@@ -192,7 +192,7 @@ class CliffordRB(BaseBenchmark):
         result = {
             "qubits": self.num_qubits,
             "alpha": float(alpha),
-            "AverageGateError": "{:.5f}".format(self.avg_gate_err),
+            "AverageGateError": self.avg_gate_err,
         } | self.fit_result
 
         return result
