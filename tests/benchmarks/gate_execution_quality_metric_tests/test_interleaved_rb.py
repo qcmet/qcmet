@@ -17,15 +17,19 @@ import qcmet as qcm
 
 
 @pytest.fixture
-def target_gate():
-    """Fixture (factory) to create a target gate instance."""
+def x_gate():
+    """Fixture to create a target gate instance."""
+    circ = QuantumCircuit(1)
+    circ.x(0)
+    return circ
 
-    def circuit(qubits):
-        circ = QuantumCircuit(qubits)
-        circ.x(0)
-        return circ
 
-    return circuit
+@pytest.fixture
+def cx_gate():
+    """Fixture to create a target gate instance."""
+    circ = QuantumCircuit(2)
+    circ.cx(0, 1)
+    return circ
 
 
 def test_raise_error_no_target():
@@ -34,11 +38,16 @@ def test_raise_error_no_target():
         qcm.InterleavedRB(m_list=[10], circs_per_m=1, qubits=1)
 
 
-@pytest.mark.parametrize("qubits,identity", [(1, 2), (2, 4)])
-def test_circ_operator(qubits, identity, target_gate):
+@pytest.mark.parametrize(
+    "qubits, identity, target_gate", [(1, 2, "x_gate"), (2, 4, "cx_gate")]
+)
+def test_circ_operator(qubits, identity, target_gate, request):
     """Verify that the total operations acting on InterleavedRB circuits are equal to the identity operator."""
     experiment = qcm.InterleavedRB(
-        m_list=[10], circs_per_m=1, qubits=qubits, target_clifford=target_gate(qubits)
+        m_list=[10],
+        circs_per_m=1,
+        qubits=qubits,
+        target_clifford=request.getfixturevalue(target_gate),
     )
     experiment.generate_circuits()
     interleaved_circ = experiment.experiment_data[
@@ -52,10 +61,10 @@ def test_circ_operator(qubits, identity, target_gate):
 
 
 @pytest.mark.parametrize("seq_length", [10, 50, 100])
-def test_num_target_gates(seq_length, target_gate):
+def test_num_target_gates(seq_length, x_gate):
     """Verify that the number of target clifford gates is at least 50% of the total clifford gates."""
     experiment = qcm.InterleavedRB(
-        m_list=[seq_length], circs_per_m=1, qubits=1, target_clifford=target_gate(1)
+        m_list=[seq_length], circs_per_m=1, qubits=1, target_clifford=x_gate
     )
     experiment.generate_circuits()
     interleaved_circ = experiment.experiment_data[
@@ -68,14 +77,14 @@ def test_num_target_gates(seq_length, target_gate):
     assert gates["x"] >= seq_length
 
 
-@pytest.mark.parametrize("qubits", [1, 2])
-def test_analyze_noiseless(qubits, target_gate):
+@pytest.mark.parametrize("qubits, target_gate", [(1, "x_gate"), (2, "cx_gate")])
+def test_analyze_noiseless(qubits, target_gate, request):
     """Verify that analyze() computes average and interleaved gate errors to be zero when running on noiseless device."""
     experiment = qcm.InterleavedRB(
         m_list=[0, 20, 50, 100, 300, 500, 1000],
         circs_per_m=5,
         qubits=qubits,
-        target_clifford=target_gate(qubits),
+        target_clifford=request.getfixturevalue(target_gate),
     )
     experiment.generate_circuits()
     ideal_sim = qcm.IdealSimulator()
@@ -85,14 +94,14 @@ def test_analyze_noiseless(qubits, target_gate):
     assert float(results["InterleavedGateError"]) == 0
 
 
-@pytest.mark.parametrize("qubits", [1, 2])
-def test_analyze_noisy(qubits, target_gate):
+@pytest.mark.parametrize("qubits, target_gate", [(1, "x_gate"), (2, "cx_gate")])
+def test_analyze_noisy(qubits, target_gate, request):
     """Verify that at a given m, IRB p_surv < RB p_surv for at least 90% of all data points."""
     experiment = qcm.InterleavedRB(
         m_list=[0, 20, 50, 100, 300, 500, 1000],
         circs_per_m=5,
         qubits=qubits,
-        target_clifford=target_gate(qubits),
+        target_clifford=request.getfixturevalue(target_gate),
     )
     experiment.generate_circuits()
     noisy_sim = qcm.NoisySimulator()
@@ -114,12 +123,12 @@ def test_analyze_noisy(qubits, target_gate):
     assert np.mean(condition) > 0.9
 
 
-def test_result_with_known_error():
-    """Verify that analyze() returns AverageGateError value comparable to noise model."""
-    all_gate_noise = NoiseModel()
+def test_result_with_known_error_x_gate():
+    """Verify that analyze() returns InterleavedGateError value comparable to noise model for x gate."""
+    x_gate_noise = NoiseModel()
     p_err = 0.01
     error_1q = depolarizing_error(p_err, 1)
-    all_gate_noise.add_all_qubit_quantum_error(error_1q, ["x"], warnings=False)
+    x_gate_noise.add_all_qubit_quantum_error(error_1q, ["x"], warnings=False)
 
     q_reg = QuantumRegister(1, name="q")
     circ = QuantumCircuit(q_reg)
@@ -132,7 +141,7 @@ def test_result_with_known_error():
         target_clifford=circ,
     )
     experiment.generate_circuits()
-    noisy_sim = qcm.AerSimulator(noise_model=all_gate_noise, seed_simulator=42)
+    noisy_sim = qcm.AerSimulator(noise_model=x_gate_noise, seed_simulator=42)
     experiment.run(device=noisy_sim, num_shots=10000)
     experiment.analyze()
     assert np.isclose(
@@ -140,13 +149,40 @@ def test_result_with_known_error():
     )
 
 
-def test_directory_structure_created(target_gate):
+def test_result_with_known_error_cx_gate():
+    """Verify that analyze() returns InterleavedGateError value comparable to noise model for cx gate."""
+    cx_gate_noise = NoiseModel()
+    p_err = 0.01
+    error_2q = depolarizing_error(p_err, 2)
+    cx_gate_noise.add_all_qubit_quantum_error(error_2q, ["cx"], warnings=False)
+
+    q_reg = QuantumRegister(2, name="q")
+    circ = QuantumCircuit(q_reg)
+    circ.cx(0,1)
+
+    experiment = qcm.InterleavedRB(
+        m_list=[0, 1, 2, 3, 5, 10, 15, 20, 30, 50, 70, 100, 200, 300],
+        circs_per_m=5,
+        qubits=2,
+        target_clifford=circ,
+    )
+    experiment.generate_circuits()
+    noisy_sim = qcm.AerSimulator(noise_model=cx_gate_noise, seed_simulator=42)
+    experiment.run(device=noisy_sim, num_shots=10000)
+    experiment.analyze()
+    assert np.isclose(
+        float(experiment.result["InterleavedGateError"]), p_err * 3 / 4, rtol=0.1
+    )
+
+
+@pytest.mark.parametrize("qubits, target_gate", [(1, "x_gate"), (2, "cx_gate")])
+def test_directory_structure_created(qubits, target_gate, request):
     """Test creation of irb and rb instance subfolders."""
     experiment = qcm.InterleavedRB(
         m_list=[0],
         circs_per_m=5,
-        qubits=1,
-        target_clifford=target_gate(1),
+        qubits=qubits,
+        target_clifford=request.getfixturevalue(target_gate),
         save_path=qcm.FileManager("test_bench", base_path="tmp_path"),
     )
 
