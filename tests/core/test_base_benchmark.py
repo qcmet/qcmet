@@ -84,7 +84,7 @@ class MaxJobsBenchmark(BaseBenchmark):
         qc2 = QuantumCircuit(1)
         qc2.x(0)
         qc2.measure_all()
-        return [qc1, qc2]
+        return [qc1] * 3 + [qc2] * 2
 
     def _run(self):
         return {}
@@ -374,10 +374,13 @@ def test_call():
 
 
 def test_max_circs_per_job():
-    """Verify that max_circs_per_job returns expected number of measurements in correct order."""
+    """Verify that using max_circs_per_job returns expected number of measurements, including when no. of circuits in benchmark is not disivible by max_circs_per_job ."""
     experiment = MaxJobsBenchmark(name="test", qubits=1)
     experiment.generate_circuits()
-    experiment.run(device=IdealSimulator(), num_shots=100, circs_per_job=1)
-    assert len(experiment.experiment_data["circuit_measurements"])
+    experiment.run(device=IdealSimulator(), num_shots=100, max_circs_per_job=3)
+    assert len(experiment.experiment_data["circuit_measurements"]) == 5
     assert experiment.experiment_data.loc[0, "circuit_measurements"]["0"] == 100
-    assert experiment.experiment_data.loc[1, "circuit_measurements"]["1"] == 100
+    assert experiment.experiment_data.loc[1, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[2, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[3, "circuit_measurements"]["1"] == 100
+    assert experiment.experiment_data.loc[4, "circuit_measurements"]["1"] == 100

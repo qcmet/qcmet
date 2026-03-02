@@ -52,7 +52,7 @@ class BaseDevice(ABC):
         """
         pass
 
-    def run(self, circuits, num_shots: int = 1024, max_circs_per_job = None):
+    def run(self, circuits, num_shots: int = 1024, max_circs_per_job=None):
         """Execute one or more quantum circuits on the device.
 
         If a single circuit is passed, a single counts dictionary should be returned.
@@ -62,7 +62,7 @@ class BaseDevice(ABC):
         Args:
             circuits (QuantumCircuit | List[QuantumCircuit]): The circuit(s) to execute.
             num_shots (int, optional): Number of measurement shots. Defaults to 1024.
-            max_circs_per_job (int, optional): Maximum number of circuits to be submitted per job. This is for when 
+            max_circs_per_job (int, optional): Maximum number of circuits to be submitted per job. This is for when
             benchmark requires more circuits than hardware can run in one job. Defaults to None.
 
         Returns:
@@ -70,20 +70,18 @@ class BaseDevice(ABC):
 
         """
         if max_circs_per_job:
-            circ_jobs = [circuits[i:i + max_circs_per_job] for i in range(0, len(circuits), max_circs_per_job)]
+            circ_jobs = [
+                circuits[i : i + max_circs_per_job]
+                for i in range(0, len(circuits), max_circs_per_job)
+            ]
             counts = []
             for circs in circ_jobs:
                 job_counts = self._run(circs, num_shots)
-                if isinstance(job_counts,dict):
+                if isinstance(job_counts, dict):
                     job_counts = [job_counts]
                 counts.extend(job_counts)
-            
+
         else:
             counts = self._run(circuits, num_shots)
-        
+
         return counts
-
-
-
-
-
