@@ -54,8 +54,8 @@ class FileManager:
     benchmark_name: str
     base_path: str | Path
     create_timestamp_folder: bool = True
-    run_id: str = datetime.now().strftime("%Y%m%d_%H%M%S")
     log_level: int = logging.INFO
+    run_id: str = None
     save_circuits: bool = True
     save_plots: bool = True
     save_intermediate: bool = True
@@ -63,6 +63,8 @@ class FileManager:
     def __post_init__(self):
         """Initialize the run path and create the directory structure."""
         self.base_path = Path(self.base_path)
+        if self.run_id is None:
+            self.run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         if self.create_timestamp_folder:
             self.run_path = self.base_path / f"{self.benchmark_name}_{self.run_id}"
         else:
