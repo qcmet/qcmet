@@ -374,7 +374,7 @@ def test_call():
 
 
 def test_max_circs_per_job():
-    """Verify that using max_circs_per_job returns expected number of measurements, including when no. of circuits in benchmark is not disivible by max_circs_per_job ."""
+    """Verify that using max_circs_per_job returns expected number of measurements, including when no. of circuits in benchmark is not divisible by max_circs_per_job."""
     experiment = MaxJobsBenchmark(name="test", qubits=1)
     experiment.generate_circuits()
     experiment.run(device=IdealSimulator(), num_shots=100, max_circs_per_job=3)
