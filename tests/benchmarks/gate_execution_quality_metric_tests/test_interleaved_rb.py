@@ -158,11 +158,11 @@ def test_result_with_known_error_cx_gate():
 
     q_reg = QuantumRegister(2, name="q")
     circ = QuantumCircuit(q_reg)
-    circ.cx(0,1)
+    circ.cx(0, 1)
 
     experiment = qcm.InterleavedRB(
-        m_list=[0, 1, 2, 3, 5, 10, 15, 20, 30, 50, 70, 100, 200, 300],
-        circs_per_m=5,
+        m_list=[0, 1, 2, 3, 5, 10, 15, 20, 30, 50, 70, 100, 150, 200, 300, 400],
+        circs_per_m=10,
         qubits=2,
         target_clifford=circ,
     )
