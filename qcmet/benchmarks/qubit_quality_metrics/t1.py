@@ -38,12 +38,12 @@ class T1(BaseBenchmark):
     def __init__(
         self,
         qubit_index: int = 0,
-        num_idle_gates_per_circ: npt.ArrayLike | None =None,
+        num_idle_gates_per_circ: npt.ArrayLike | None = None,
         delay: npt.ArrayLike | None = None,
         save_path: str | Path | FileManager | None = None,
     ):
         """Initialize the T1 benchmark.
-        
+
         The benchmark can be specified with a range of idle gates or range of delay gates.
         The benchmark defaults to num_idle_gates for specifying the delay times.
 
@@ -161,7 +161,7 @@ class T1(BaseBenchmark):
             self.success = True
         except Exception as e:
             self.success = False
-            print("Failed to find over/under rotation")
+            print("Failed to fit T1 data")
             raise e
 
         self.fit_result = {"fit": {"popt": popt, "pcov": pcov}}

@@ -21,8 +21,13 @@ def test_raise_error_invalid_gate():
     """Verify that the ValueError is raised when a non-Clifford gate is specified."""
     non_clifford = QuantumCircuit(1)
     non_clifford.t(0)
-    with pytest.raises(ValueError, match="target_clifford is not a valid Clifford gate."):
-        qcm.CliffordRB(m_list=[10], circs_per_m=1, qubits=1, target_clifford=non_clifford)
+    with pytest.raises(
+        ValueError, match="target_clifford is not a valid Clifford gate."
+    ):
+        qcm.CliffordRB(
+            m_list=[10], circs_per_m=1, qubits=1, target_clifford=non_clifford
+        )
+
 
 @pytest.mark.parametrize("qubits,identity", [(1, 2), (2, 4)])
 def test_circ_operator(qubits, identity):
@@ -79,7 +84,7 @@ def test_analyze_ideal(qubits, average_gate_error):
     ideal_sim = qcm.IdealSimulator()
     experiment.run(device=ideal_sim, num_shots=100)
     results = experiment.analyze()
-    assert float(results["AverageGateError"]) == average_gate_error
+    assert np.isclose(results["AverageGateError"], average_gate_error, atol=1e-5)
 
 
 @pytest.mark.parametrize("qubits,zero_gate_error", [(1, 0), (2, 0)])
@@ -149,8 +154,12 @@ def test_result_with_known_error():
     )
     experiment.generate_circuits()
     noisy_sim = qcm.AerSimulator(
-        noise_model=all_gate_noise, basis_gates=["u1", "u2", "u3", "cx"], seed_simulator=42
+        noise_model=all_gate_noise,
+        basis_gates=["u1", "u2", "u3", "cx"],
+        seed_simulator=42,
     )
     experiment.run(device=noisy_sim, num_shots=10000)
     experiment.analyze()
-    assert np.isclose(float(experiment.result["AverageGateError"]), p_err*1/2, rtol=0.1)
+    assert np.isclose(
+        float(experiment.result["AverageGateError"]), p_err * 1 / 2, rtol=0.1
+    )

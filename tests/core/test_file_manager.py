@@ -1,6 +1,7 @@
 """test_file_manager.py."""
 
 import json
+import time
 from datetime import datetime
 
 import matplotlib.pyplot as plt
@@ -35,6 +36,24 @@ def fm_no_ts(tmp_path):
         base_path=tmp_path,
         create_timestamp_folder=False,
     )
+
+
+def test_different_timestamps(tmp_path):
+    """Test that different timestamps are assigned when running the same benchmark twice."""
+    fm1 = FileManager(
+        benchmark_name="bench",
+        base_path=tmp_path,
+        create_timestamp_folder=True,
+        run_id=None,
+    )
+    time.sleep(1)
+    fm2 = FileManager(
+        benchmark_name="bench",
+        base_path=tmp_path,
+        create_timestamp_folder=True,
+        run_id=None,
+    )
+    assert fm1.run_id != fm2.run_id
 
 
 def test_directory_structure_created(fm, fixed_run_id):
@@ -121,6 +140,7 @@ def test_make_json_serializable_scalar_types(fm, tmp_path):
     assert fm._make_json_serializable(cx) == {"real": 1.0, "imag": 2.0}
     assert fm._make_json_serializable(path) == str(path)
 
+
 def test_save_json_mixed_types(fm, tmp_path):
     """Test json serialization works."""
     data = {
@@ -160,4 +180,3 @@ def test_save_plot_creates_file(fm):
     p = fm.save_plot(fig, "my_plot", "png")
     assert p.exists()
     assert p.suffix == ".png"
-   

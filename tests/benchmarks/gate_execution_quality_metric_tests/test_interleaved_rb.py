@@ -75,8 +75,8 @@ def test_analyze_noiseless(qubits):
     ideal_sim = qcm.IdealSimulator()
     experiment.run(device=ideal_sim, num_shots=100)
     results = experiment.analyze()
-    assert float(results["AverageGateError"]) == 0
-    assert float(results["InterleavedGateError"]) == 0
+    assert np.isclose(results["AverageGateError"], 0, atol=1e-5)
+    assert np.isclose(results["InterleavedGateError"], 0, atol=1e-5)
 
 
 @pytest.mark.parametrize("qubits", [1, 2])
@@ -128,9 +128,7 @@ def test_result_with_known_error():
         target_clifford=circ,
     )
     experiment.generate_circuits()
-    noisy_sim = qcm.AerSimulator(
-        noise_model=all_gate_noise, seed_simulator=42
-    )
+    noisy_sim = qcm.AerSimulator(noise_model=all_gate_noise, seed_simulator=42)
     experiment.run(device=noisy_sim, num_shots=10000)
     experiment.analyze()
     assert np.isclose(

@@ -1,7 +1,7 @@
 """T2 metric benchmark.
 
 This module implements the T2 benchmark for both T2 Ramsey and T2 Hahn. Due to
-differing levels of access to quantum hardware, this benchmark allows for 
+differing levels of access to quantum hardware, this benchmark allows for
 specifying the delay times in terms of time or in terms of number of idle gates.
 
 """
@@ -39,7 +39,7 @@ class T2(BaseBenchmark):
         config (dict): Configuration dictionary containing:
             - method (str): Either 'ramsey' or 'hahn'
             - num_idle_gates_per_circ (array-like): Number of idle gates per circuit
-            - detuning_phase (float): Phase accumulation per idle gate for Ramsey 
+            - detuning_phase (float): Phase accumulation per idle gate for Ramsey
                 (defaults: np.pi/100 for idle_gates and np.pi/10 for delay gates)
             - delay (array-like): Length of delay per circuit
         fit_result (dict): Stores the results of the fit.
@@ -65,15 +65,15 @@ class T2(BaseBenchmark):
             num_idle_gates_per_circ (array-like, optional): Sequence of idle gate counts to use.
                 For Ramsey: defaults to np.arange(1, 1000, 50)
                 For Hahn: defaults to np.arange(1, 2000, 100)
-            detuning_phase (float, optional): Phase per idle/delay gate to simulate 
-                detuning in Ramsey.Defaults to np.pi/100 for idle gates approach and 
-                np.pi/10 for delay gates approach. These defaults had produced 
+            detuning_phase (float, optional): Phase per idle/delay gate to simulate
+                detuning in Ramsey.Defaults to np.pi/100 for idle gates approach and
+                np.pi/10 for delay gates approach. These defaults had produced
                 sensible fits for T2 and T2* with a noisy simulator.
-            delay (array-like, optional): Sequence of delay gates to use in circuits. 
+            delay (array-like, optional): Sequence of delay gates to use in circuits.
                 This is for alternate methodto the idle_gates approach. Do not set
                 an argument for num_idle_gates_per_circ when defining delay. Units
                 are in microseconds.
-            save_path (str | Path | FileManager | None, optional): Directory path to 
+            save_path (str | Path | FileManager | None, optional): Directory path to
                 save results. Defaults to None.
 
         Raises:
@@ -81,7 +81,7 @@ class T2(BaseBenchmark):
             ValueError: If num_idle_gates_per_circ and delay are both specified.
 
         """
-        super().__init__("T2", qubits=[qubit_index], save_path=save_path)
+        super().__init__("T2" + method, qubits=[qubit_index], save_path=save_path)
 
         if method not in ["ramsey", "hahn"]:
             raise ValueError("method must be either 'ramsey' or 'hahn'")
