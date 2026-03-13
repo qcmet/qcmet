@@ -18,8 +18,11 @@ from .benchmarks import (
     InterleavedRB,
     MirroredCircuits,
     OverUnderRotationAngle,
+    QScore,
     QScoreSingleInstance,
+    QuantumVolume,
     QuantumVolumeFixedQubits,
+    SequentialBenchmark,
     Simulation1DFermiHubbard,
     UpperBoundOnVD,
     VQE1DFermiHubbard,
@@ -58,6 +61,9 @@ __all__ = [
     "IdleQubitOscillationFrequency",
     "UpperBoundOnVD",
     "BenchmarkCollection",
+    "SequentialBenchmark",
+    "QScore",
+    "QuantumVolume",
 ]
 
 __version__ = "1.0.0"
