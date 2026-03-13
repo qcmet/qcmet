@@ -6,10 +6,6 @@ problems by running MaxCut instances on random graphs and comparing the device
 solution quality to the exact optimum. The primary figure of merit is the
 approximation ratio, which can be mapped into a device "QScore" at a given
 problem size. Here the benchmarking procedure follows M5.2 from arxiv:2502.06717
-
-TODO: The current implementation only runs a single instance for a fixed number of qubits.
-To get the actual QScore metric, this needs to be run for inreasing numbers of qubits until
-the largest size satisfying the pass criterion is reached.
 """
 
 from __future__ import annotations
@@ -27,7 +23,7 @@ from qiskit.circuit import Parameter
 from scipy.optimize import minimize
 from tqdm import tqdm
 
-from qcmet.benchmarks import BaseBenchmark
+from qcmet.benchmarks import BaseBenchmark, SequentialBenchmark
 
 
 class QScoreSingleInstance(BaseBenchmark):
@@ -208,10 +204,10 @@ class QScoreSingleInstance(BaseBenchmark):
             counts = self.experiment_data["circuit_measurements"][i]
             graph = self.experiment_data["graph"][i]
             for bit_string, count in counts.items():
-                # TODO: implement more efficiently
                 expectation = 0
                 for x, y in graph:
-                    # note that the factor of 1/2 is different from original equation in paper, but is required to get the right MaxCut score
+                    # note that the factor of 1/2 is different from original equation in paper,
+                    # but is required to get the right MaxCut score
                     if bit_string[x] != bit_string[y]:
                         expectation -= 1 / 2
                     else:
@@ -315,3 +311,76 @@ class QScoreSingleInstance(BaseBenchmark):
         )
 
         return {"beta": beta, "passed": beta > 0.2}
+
+
+class QScore(SequentialBenchmark):
+    """Implementation of the QScore benchmark by running QScoreSingleInstance using SequentialBenchmark."""
+
+    def __init__(
+            self,
+            min_qubits: int = 2,
+            max_qubits: int = 100,
+            qubit_indices: List[int] = None,
+            depth: int = 2,
+            n_graphs: int = 100,
+            seed: int = None,
+            save_path: str = None
+    ):
+        """Initialize the QScore benchmark.
+
+        Args:
+            min_qubits (int, optional): The minimum number of qubits to run QScore with. Defaults to 2.
+            max_qubits (int, optional): The maximum number of qubits to run QScore with, inclusive. Defaults to 100.
+            qubit_indices (List[int], optional): The indices of the qubits to benchmark on.
+                Each QScoreSingleInstance on n qubits will use qubits indexed by the first n-th elements of this list.
+                Defaults to None.
+            depth (int, optional): Number of QAOA layers, passed to QScoreSingleInstance. Defaults to 2.
+            n_graphs (int, optional):  Number of random graphs, passed to QScoreSingleInstance. Defaults to 100.
+            seed (int, optional): Random seed for reproducibility, passed to QScoreSingleInstance. Defaults to None.
+            save_path (str | Path | FileManager, optional): Path to save benchmark outputs. Defaults to None.
+
+        """
+        super().__init__(
+            "QScore",
+            QScoreSingleInstance,
+            min_qubits,
+            max_qubits,
+            qubit_indices,
+            {"depth": depth, "n_graphs": n_graphs, "seed": seed},
+            save_path
+        )
+
+    def should_stop(self, results):
+        """Retrieve the precomputed pass flag."""
+        return results["passed"] is False
+
+    def _analyze(self):
+        """Take the largest number of qubits that passed the QScore benchmark as the QScore value.
+
+        If all/none of the runs pass, set QScore to None.
+
+        Returns:
+            Dict[str, object]: {"QScore": int | None}
+
+        """
+        qubit = self.get_largest_successful_qubit()
+        return {"QScore": qubit}
+
+    def _plot(self, axes):
+        """Plot a line plot for the beta value from each QScoreSingleInstance benchmark vs. number of qubits.
+
+        Returns:
+            matplotlib.legend.Legend: The legend of the plot.
+
+        """
+        qubits = []
+        betas = []
+        for i, result in enumerate(self.all_results):
+            qubits.append(self.config["min_qubits"] + i)
+            betas.append(result["beta"])
+        axes.plot(qubits, betas, label=self._runtime_params["device"].name)
+        axes.set_title("QScore benchmark")
+        axes.set_xlabel("Number of qubits")
+        axes.set_xticks(qubits)
+        axes.set_ylabel(r"$\beta$")
+        return axes.legend()

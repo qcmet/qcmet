@@ -1,8 +1,10 @@
 """test_quantum_volume.py.
 
-Unit tests for the QuantumVolumeFixedQubits benchmark in
-qcmet.benchmarks.quantum_volume_fixed_qubits.
+Unit tests for the QuantumVolumeFixedQubits and QuantumVolume in
+qcmet.benchmarks.quantum_volume.
 """
+
+from unittest.mock import patch
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,7 +13,11 @@ from pytest import approx
 from qiskit import QuantumCircuit
 
 import qcmet as qcm
-from qcmet.benchmarks import QuantumVolumeFixedQubits
+from qcmet.benchmarks import (
+    QuantumVolume,
+    QuantumVolumeFixedQubits,
+)
+from qcmet.devices import IdealSimulator
 from qcmet.utils import compute_ideal_outputs, final_statevector
 
 
@@ -169,7 +175,7 @@ def test_plot():
 
 def test_seed_circuits():
     """Verify that experiments with the same seed produce the same circuits."""
-    seed = seed = np.random.randint(1, 100)
+    seed = np.random.randint(1, 100)
     experiment1 = qcm.QuantumVolumeFixedQubits(qubits=3, trials=10, seed=seed)
     experiment1.generate_circuits()
     experiment2 = qcm.QuantumVolumeFixedQubits(qubits=3, trials=10, seed=seed)
@@ -183,7 +189,7 @@ def test_seed_circuits():
 
 def test_seed_result():
     """Verify that experiments with the same seed produce the same result outcome."""
-    seed = seed = np.random.randint(1, 100)
+    seed = np.random.randint(1, 100)
     experiment1 = qcm.QuantumVolumeFixedQubits(qubits=2, trials=10, seed=seed)
     experiment1.generate_circuits()
     ideal_sim = qcm.IdealSimulator()
@@ -194,3 +200,28 @@ def test_seed_result():
     experiment2.run(device=ideal_sim, num_shots=1024)
     results2 = experiment2.analyze()
     assert results1["outcome"] == results2["outcome"]
+
+
+def test_qv_analyze():
+    """Verify that QuantumVolume._analyze correctly outputs the V_Q value or None in the resulting dict."""
+    qv = QuantumVolume(1, 100)
+
+    with patch("qcmet.benchmarks.SequentialBenchmark.get_largest_successful_qubit") as mock_qubit:
+        mock_qubit.return_value = None
+        assert qv._analyze()["V_Q"] is None
+
+    with patch("qcmet.benchmarks.SequentialBenchmark.get_largest_successful_qubit") as mock_qubit:
+        mock_qubit.return_value = 4
+        assert qv._analyze()["V_Q"] == 2 ** 4
+
+
+def test_qv_plot():
+    """Verify that QuantumVolume._plot correctly plots the V_Q values of each QuantumVolumeFixedQubits."""
+    device = IdealSimulator()
+    qv = QuantumVolume(2, 3)
+    qv(device, num_shots=1000)
+    fig = plt.gcf()
+    axes = fig.axes
+    assert len(axes) == 2
+    assert "Quantum Volume" in axes[0].get_title()
+    assert "Quantum Volume" in axes[1].get_title()
