@@ -1,9 +1,9 @@
-"""Quantum Volume Fixed Qubits Metric.
+"""Quantum Volume Metric.
 
 This module provides the QuantumVolume implementation for the QCMet
-framework for a fixed number of qubits. This metric measures the overall
-capabilities of a noisy quantum computer. Here the benchmarking
-procedure follows M4.1 from arxiv:2502.06717
+framework. This metric measures the overall capabilities of a noisy
+quantum computer. Here the benchmarking procedure follows M4.1
+from arxiv:2502.06717.
 """
 
 from __future__ import annotations
@@ -16,25 +16,27 @@ if TYPE_CHECKING:
 
     from qcmet.core import FileManager
 import numpy as np
+from matplotlib import pyplot as plt
 from qiskit import QuantumCircuit
 from qiskit.circuit.library import UnitaryGate
 
 from qcmet.benchmarks import BaseBenchmark
+from qcmet.benchmarks.sequential_benchmark import SequentialBenchmark
 from qcmet.utils import compute_ideal_outputs
 
 
 class QuantumVolumeFixedQubits(BaseBenchmark):
-    """Implementation of the Quantum Volume Metric.
+    """Implementation of the Quantum Volume Metric with fixed number of qubits.
 
     This class generates square circuits with Nq qubits and Nq layers of
-    gates, where the layers comprise of an Nq qubit gate which randomly
+    gates, where the layers consist of an Nq qubit gate which randomly
     changes the order of qubits and a column of Haar-random two-qubit
-    gates. The ideal probabilites of all bistrings are determined from
+    gates. The ideal probabilities of all bitstrings are determined from
     noiseless simulations and the heavy output probability is calculated
     for each circuit. Finally, the condition for the device achieving a
     quantum volume of 2^Nq is checked.
 
- 
+
     """
 
     def __init__(
@@ -91,7 +93,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
         This randomly changes the order of qubits. In the instance that the random
         ordering of qubits is equal to the initial ordering, the circuit will not
         illustrate that the swap layer has been applied. Seed for random number
-        generation is used if explictly defined in initialization.
+        generation is used if explicitly defined in initialization.
 
         Args:
             qc (QuantumCircuit): The square quantum volume circuit.
@@ -125,7 +127,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
             qc.append(UnitaryGate(random_su4_gate, label="su4"), [qubit, qubit + 1])
 
     def _apply_qv_layer(self, qc, qubits):
-        """Apply a qv layer comprising of a swap layer and an su4 layer.
+        """Apply a qv layer consisting of a swap layer and an su4 layer.
 
         Args:
             qc (QuantumCircuit): The square quantum volume circuit.
@@ -138,7 +140,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
     def _generate_single_qv_circuit(self, qubits):
         """Generate a single quantum volume circuit.
 
-        The ciruit is built with the following steps:
+        The circuit is built with the following steps:
             1. Apply a total of Nq qv layers to the circuit.
             2. Measure all qubits.
 
@@ -233,6 +235,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
                 'mean-2sigma' (float): Confidence interval of 2 sigma below the mean.
                 'outcome' (string): "Pass" if success criterion is met, otherwise "Fail".
                 'quantum_volume' (str): >= 2^Nq if success criterion is met, otherwise < 2^Nq.
+            }
 
         """
         self._experiment_data["ideal_outputs"] = None
@@ -276,7 +279,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
         return result
 
     def _plot(self, axes):
-        """Plot histogram of the heavy outputs probabilites.
+        """Plot histogram of the heavy outputs probabilities.
 
         Horizontal lines are plotted to illustrate  p_h = 2/3 (magenta), mean p_h (black)
         and success criterion (black, dashed).
@@ -311,3 +314,68 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
 
         axes.set_title(rf"Quantum Volume: {self.result['quantum_volume']}")
         return axes.legend()
+
+
+class QuantumVolume(SequentialBenchmark):
+    """Implementation of the QuantumVolume benchmark by running QuantumVolumeFixedQubits using SequentialBenchmark."""
+
+    def __init__(
+            self,
+            min_qubits: int = 1,
+            max_qubits: int = 100,
+            qubit_indices: List[int] = None,
+            trials: int = 100,
+            seed: int = None,
+            save_path: str = None
+    ):
+        """Initialize the QuantumVolume benchmark.
+
+        Args:
+            min_qubits (int, optional): The minimum number of qubits to run quantum volume with. Defaults to 1.
+            max_qubits (int, optional): The maximum number of qubits to run quantum volume with, inclusively. Defaults to 100.
+            qubit_indices (List[int], optional): The indices of the qubits to benchmark on.
+                Each QuantumVolumeFixedQubits on n qubits will use qubits indexed by the first n-th elements of this list.
+                Defaults to None.
+            trials (int, optional): The number of circuits to generate, passed to QuantumVolumeFixedQubits. Defaults to 100.
+            seed (int, optional): Random seed for reproducibility, passed to QuantumVolumeFixedQubits. Defaults to None.
+            save_path (str | Path | FileManager, optional): Path to save benchmark outputs. Defaults to None.
+
+        """
+        super().__init__(
+            "Quantum Volume",
+            QuantumVolumeFixedQubits,
+            min_qubits,
+            max_qubits,
+            qubit_indices,
+            {"trials": trials, "save_path": save_path, "seed": seed},
+            save_path
+        )
+
+    def should_stop(self, results):
+        """Retrieve the precomputed Pass/Fail flag."""
+        return results["outcome"] == "Fail"
+
+    def _analyze(self):
+        """Obtain V_Q from the largest qubit number with a successful run.
+
+        If all/none of the runs pass, set V_Q to None.
+
+        Returns:
+            Dict[str, object]: {"V_Q": int | None}
+
+        """
+        qubit = self.get_largest_successful_qubit()
+        vq = None if qubit is None else 2 ** qubit
+
+        return {"V_Q": vq}
+
+    def _plot(self, axes):
+        """Put plots from each QuantumVolumeFixedQubit into one figure."""
+        benchmarks = self.benchmarks
+        figsize = plt.rcParams["figure.figsize"]
+        _, axes = plt.subplots(ncols=len(benchmarks), figsize=(figsize[0] * len(benchmarks), figsize[1]))
+        # Flatten it to avoid error caused by only 1 ax returned by subplots
+        axes = np.array(axes).flatten()
+        for benchmark, ax in zip(benchmarks, axes, strict=True):
+            benchmark.plot(axes=ax)
+        return axes[0].legend()
