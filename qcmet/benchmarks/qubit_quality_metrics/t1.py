@@ -198,7 +198,7 @@ class T1(BaseBenchmark):
             self.experiment_data["p_1"],
             color="black",
             marker="x",
-            label="Emulator results",
+            label="Measurements",
         )
         axes.plot(
             x_to_fit, fitted_probs, color="black", ls="--", label="Fitted equation"
