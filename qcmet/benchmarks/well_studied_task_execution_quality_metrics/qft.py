@@ -137,8 +137,8 @@ class QFT(BaseBenchmark):
 
         return new_dict
 
-    def _exact_probs_from_random_initialization(self, rand_initial):
-        """Compute the exact probability distribution for a given QFT initialization.
+    def _exact_bitstring_from_initial_state(self, rand_initial):
+        """Compute the exact output bitstring for a specified initial state.
 
         Args:
             rand_initial (array-like): Sequence of bits representing the prepared state.
@@ -149,11 +149,13 @@ class QFT(BaseBenchmark):
 
         """
         exact_probs = np.zeros(2**self.num_qubits)
+        # If initial state is at maximum index, set state to lowest index state
         if (
             int("".join(str(i) for i in rand_initial), 2) + 1
         ) % 2**self.num_qubits == 0:
             exact_probs[0] = 1
         else:
+            # Increment state index by 1
             exact_probs[int("".join(str(i) for i in rand_initial), 2) + 1] = 1
         return exact_probs
 
@@ -191,7 +193,7 @@ class QFT(BaseBenchmark):
     def get_exact_probs(self):
         """Compute theoretical probabilities based on random initializations.
 
-        Applies the `_exact_probs_from_random_initialization` method to each
+        Applies the `_exact_bitstring_from_initial_state` method to each
         entry in the `random_initialization` column of `experiment_data`.
         Stores the resulting exact (ideal) probabilities in a new column
         called `exact_probs`.
@@ -202,7 +204,7 @@ class QFT(BaseBenchmark):
         """
         self.experiment_data["exact_probs"] = self.experiment_data[
             "random_initialization"
-        ].apply(self._exact_probs_from_random_initialization)
+        ].apply(self._exact_bitstring_from_initial_state)
 
     def order_meas_probs_by_bitstring_decimal_value(self):
         """Order measured probabilities by increasing bitstring decimal value.
