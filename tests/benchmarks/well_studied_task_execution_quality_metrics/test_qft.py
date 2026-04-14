@@ -10,7 +10,7 @@ from qcmet.benchmarks import QFT
 
 def test_convert_binary_keys_to_decimal_valid():
     """Verify that convert_binary_keys_to_decimal works.
-     
+
     It should maps binary-string keys to integer keys, preserving the associated values.
     """
     mapping = {"00": 0.1, "01": 0.2, "10": 0.3, "11": 0.4}
@@ -25,43 +25,43 @@ def test_convert_binary_keys_to_decimal_invalid():
         QFT.convert_binary_keys_to_decimal("not a dict")
 
 
-def test_exact_probs_from_random_initialization():
-    """Confirm that _exact_probs_from_random_initialization is correct.
-      
-    It shoud produce an array of length 2**num_qubits, with the single '1' 
+def test_exact_probs_from_initial_state():
+    """Confirm that _exact_prob_vector_from_initial_state is correct.
+
+    It shoud produce an array of length 2**num_qubits, with the single '1'
     at the index matching the input bitstring + 1.
     """
     qft = QFT(qubits=3)
-    rand_init = np.array([1, 0, 1], dtype=int)
+    initial_state = np.array([1, 0, 1], dtype=int)
 
-    probs = qft._exact_probs_from_random_initialization(rand_init)
+    probs = qft._exact_prob_vector_from_initial_state(initial_state)
     assert isinstance(probs, np.ndarray)
     assert probs.shape == (2**3,)
 
     # Only index 6 (int('101',2) + 1) should be 1
     assert np.count_nonzero(probs) == 1
-    assert probs[6] == 1 
+    assert probs[6] == 1
 
 
 @pytest.mark.parametrize("qubits", [(2), (3), (4)])
 def test_exact_probs_from_random_initialization_max_index(qubits):
-    """Confirm that _exact_probs_from_random_initialization is correct for rand_initial with highest index.
-      
-    It shoud produce an array of length 2**num_qubits, with the single '1' 
+    """Confirm that _exact_prob_vector_from_initial_state is correct for initial_state with highest index.
+
+    It shoud produce an array of length 2**num_qubits, with the single '1'
     at the index matching the input bitstring + 1.
     """
     qft = QFT(qubits=qubits)
     max_statevector = [1] * qubits
 
-    rand_init = np.array(max_statevector, dtype=int)
+    initial_state = np.array(max_statevector, dtype=int)
 
-    probs = qft._exact_probs_from_random_initialization(rand_init)
+    probs = qft._exact_prob_vector_from_initial_state(initial_state)
     assert isinstance(probs, np.ndarray)
     assert probs.shape == (2**qubits,)
 
     # Only index 6 (int('101',2) + 1) should be 1
     assert np.count_nonzero(probs) == 1
-    assert probs[0] == 1 
+    assert probs[0] == 1
 
 
 def test_qft_inverse_round_trip():
@@ -100,12 +100,13 @@ def test_generate_circuits_structure_and_measurements():
     # Expect a 'measure' operation on each qubit
     assert ops.get("measure", 0) == 2
 
+
 def test_qft_with_ideal_sim():
     """Verify ideal simulator returns fidelity of 1."""
-    qft = QFT(4,seed=2)
+    qft = QFT(4, seed=2)
     qft.generate_circuits()
     dummy_sim = IdealSimulator()
-    qft.run(dummy_sim, num_shots = 1000)
+    qft.run(dummy_sim, num_shots=1000)
     qft.analyze()
-    assert qft.result['fidelity'] == [1.0]
-    assert qft.result['normalized_fidelity'] == [1.0]
+    assert qft.result["fidelity"] == [1.0]
+    assert qft.result["normalized_fidelity"] == [1.0]
