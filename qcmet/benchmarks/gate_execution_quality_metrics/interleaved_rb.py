@@ -64,8 +64,8 @@ class InterleavedRB(BaseBenchmark):
         ]
 
         if save_path:
-            rb_save_path = Path(self.file_manager.run_path) / "rb"
-            irb_save_path = Path(self.file_manager.run_path) / "irb"
+            rb_save_path = save_path / "rb"
+            irb_save_path = save_path / "irb"
         else:
             rb_save_path = None
             irb_save_path = None
