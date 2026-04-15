@@ -67,7 +67,7 @@ class BaseDevice(ABC):
 
         Returns:
             Dict[str, int] | List[Dict[str, int]]: Measurement outcomes (counts).
-
+ 
         """
         if max_circs_per_job:
             circ_jobs = [
