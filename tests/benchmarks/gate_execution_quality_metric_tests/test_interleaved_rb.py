@@ -188,5 +188,5 @@ def test_directory_structure_created(qubits, target_gate, request):
 
     # Check expected subdirectories
     for sub in ["rb", "irb"]:
-        p = experiment.file_manager.run_path / sub
+        p = experiment.file_manager.base_path/ "InterleavedRB_sub_results" / sub
         assert p.exists() and p.is_dir()
