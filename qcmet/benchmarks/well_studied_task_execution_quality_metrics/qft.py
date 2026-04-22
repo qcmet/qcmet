@@ -137,11 +137,11 @@ class QFT(BaseBenchmark):
 
         return new_dict
 
-    def _exact_probs_from_random_initialization(self, rand_intial):
-        """Compute the exact probability distribution for a given QFT initialization.
+    def _exact_prob_vector_from_initial_state(self, initial_state):
+        """Compute the exact output state for a specified initial state.
 
         Args:
-            rand_intial (array-like): Sequence of bits representing the prepared state.
+            initial_state (array-like): Sequence of bits representing the prepared state.
 
         Returns:
             np.ndarray: Probability vector of length 2**num_qubits with a single 1.0
@@ -149,7 +149,14 @@ class QFT(BaseBenchmark):
 
         """
         exact_probs = np.zeros(2**self.num_qubits)
-        exact_probs[int("".join(str(i) for i in rand_intial), 2) + 1] = 1
+        # If initial state is at maximum index, set state to lowest index state
+        if (
+            int("".join(str(i) for i in initial_state), 2) + 1
+        ) % 2**self.num_qubits == 0:
+            exact_probs[0] = 1
+        else:
+            # Increment state index by 1
+            exact_probs[int("".join(str(i) for i in initial_state), 2) + 1] = 1
         return exact_probs
 
     def _analyze(self):
@@ -186,7 +193,7 @@ class QFT(BaseBenchmark):
     def get_exact_probs(self):
         """Compute theoretical probabilities based on random initializations.
 
-        Applies the `_exact_probs_from_random_initialization` method to each
+        Applies the `_exact_prob_vector_from_initial_state` method to each
         entry in the `random_initialization` column of `experiment_data`.
         Stores the resulting exact (ideal) probabilities in a new column
         called `exact_probs`.
@@ -197,7 +204,7 @@ class QFT(BaseBenchmark):
         """
         self.experiment_data["exact_probs"] = self.experiment_data[
             "random_initialization"
-        ].apply(self._exact_probs_from_random_initialization)
+        ].apply(self._exact_prob_vector_from_initial_state)
 
     def order_meas_probs_by_bitstring_decimal_value(self):
         """Order measured probabilities by increasing bitstring decimal value.
