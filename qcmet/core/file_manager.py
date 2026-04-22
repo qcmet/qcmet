@@ -17,6 +17,7 @@ import numpy as np
 import qiskit.qasm3 as qasm3
 from qiskit import QuantumCircuit
 from qiskit.circuit import Gate
+from qiskit.quantum_info import Clifford
 
 
 @dataclass
@@ -207,6 +208,8 @@ class FileManager:
             }
         elif isinstance(obj, QuantumCircuit):
             return qasm3.dumps(obj)
+        elif isinstance(obj, Clifford):
+            return obj.to_dict()
         elif isinstance(obj, list):
             return [self._make_json_serializable(item) for item in obj]
         else:

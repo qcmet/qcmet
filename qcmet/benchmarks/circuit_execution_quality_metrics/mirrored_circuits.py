@@ -41,7 +41,6 @@ class MirroredCircuits(BaseBenchmark):
         clifford_operators: List[Clifford] | None = None,
         seed: int | None = None,
         save_path: str | Path | FileManager | None = None,
-        **kwargs,
     ):
         """Initialize the MirroredCircuits benchmark.
 
@@ -55,12 +54,11 @@ class MirroredCircuits(BaseBenchmark):
                 operators to use as the base circuit
             seed (int, optional): Random seed to use for randomisations, defaults to None,
                 meaning that it will be defined at random
-            save_path (str | Path | FileManager | None, optional): Directory path to save 
+            save_path (str | Path | FileManager | None, optional): Directory path to save
                 results. Defaults to None.
-            **kwargs: Additional keyword arguments passed to the BaseBenchmark superclass
 
         """
-        super().__init__("MirroredCircuits", qubits, **kwargs)
+        super().__init__("MirroredCircuits", qubits, save_path)
 
         self.config["num_circuits"] = num_circuits
 
