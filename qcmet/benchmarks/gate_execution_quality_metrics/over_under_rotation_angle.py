@@ -201,7 +201,7 @@ class OverUnderRotationAngle(BaseBenchmark):
         fit_xxs = np.linspace(0, self.config["m_max"] + 1, 1000)
         yys = self.fit_func(fit_xxs, *self.fit_result["fit_result"]["popt"])
 
-        sign = -1 * np.sign(np.gradient(np.gradient(yys)))[0]
+        sign = np.sign(np.gradient(yys))[0]
         self.fit_overrotation_amount = (
             sign * popt[3] / (self.config["num_gates_for_id"])
         )

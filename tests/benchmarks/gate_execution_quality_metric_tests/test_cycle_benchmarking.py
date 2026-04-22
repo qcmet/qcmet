@@ -27,6 +27,41 @@ def simple_g_layer_2q():
     return qc
 
 
+def test_qubits_not_match_g_layer(simple_g_layer_2q):
+    """Test that ValueError raised when qubits does not match g_layer qubits."""
+    with pytest.raises(ValueError, match="number of qubits does not match number of qubits in g_layer"):
+        qcm.CycleBenchmarking(simple_g_layer_2q,
+        [2, 4],
+        qubits=[1],
+        full_pauli_subspace=False,
+        subspace_size=10,
+        seed = 42,
+        fidelity_method="ratio", )
+
+
+def test_qubits_when_specified(simple_g_layer_2q):
+    """Check that qubit routing works."""
+    cb = qcm.CycleBenchmarking(simple_g_layer_2q,
+    [2, 4],
+    qubits=[1,5],
+    full_pauli_subspace=False,
+    subspace_size=10,
+    seed = 42,
+    fidelity_method="ratio", )
+    assert cb.qubits == [1,5]
+
+
+def test_qubits_not_specified(simple_g_layer_2q):
+    """Check that qubits is correct when qubit_indices not specified."""
+    cb = qcm.CycleBenchmarking(simple_g_layer_2q,
+    [2, 4],
+    full_pauli_subspace=False,
+    subspace_size=10,
+    seed = 42,
+    fidelity_method="ratio", )
+    assert cb.qubits == [0,1]
+
+
 def test_pauli_subspace(simple_g_layer_2q):
     """Check if Pauli subspace gives actual fidelity from known noise model."""
     cb = qcm.CycleBenchmarking(

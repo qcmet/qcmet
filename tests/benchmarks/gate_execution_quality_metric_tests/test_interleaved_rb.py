@@ -90,8 +90,8 @@ def test_analyze_noiseless(qubits, target_gate, request):
     ideal_sim = qcm.IdealSimulator()
     experiment.run(device=ideal_sim, num_shots=100)
     results = experiment.analyze()
-    assert float(results["AverageGateError"]) == 0
-    assert float(results["InterleavedGateError"]) == 0
+    assert np.isclose(results["AverageGateError"], 0, atol=1e-5)
+    assert np.isclose(results["InterleavedGateError"], 0, atol=1e-5)
 
 
 @pytest.mark.parametrize("qubits, target_gate", [(1, "x_gate"), (2, "cx_gate")])

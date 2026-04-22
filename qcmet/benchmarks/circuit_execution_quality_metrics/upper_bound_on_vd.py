@@ -36,6 +36,7 @@ class UpperBoundOnVD(BaseBenchmark):
         target_circuit: QuantumCircuit,
         mu: float = 0.0001,
         eta: float = 0.9999,
+        qubits: int | List[int] = None,
         seed: int | None = None,
         save_path: str | Path | FileManager | None = None,
     ):
@@ -47,16 +48,25 @@ class UpperBoundOnVD(BaseBenchmark):
                 of one-qubit and two-qubit gates, and the two-qubit gates must be CZ gates.
             mu (float, optional): The desired accuracy of the benchmark ∈ (0, 1). Defaults to 0.0001.
             eta (float, optional): The desired confidence of the benchmark ∈ (0, 1). Defaults to 0.9999.
+            qubits (int | List[int]): The number of qubits as either a list of qubit
+                indices or int specifying number of qubits. Defaults to number of qubits in target circuit.
             seed (int, optional): Random seed to use for randomisations. Defaults to None.
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
         """
-        super().__init__(
-            "UpperBoundOnVD", target_circuit.num_qubits, save_path=save_path
-        )
+        if qubits is None:
+            qubits = target_circuit.num_qubits
+
+        super().__init__("UpperBoundOnVD", qubits, save_path=save_path)
+        if len(self.qubits) != target_circuit.num_qubits:
+            raise ValueError(
+                f"{len(self.qubits)} qubits were specified but target circuit has {target_circuit.num_qubits} qubits."
+            )
+
         self.config["target_circuit"] = target_circuit
         self.config["mu"] = mu
         self.config["eta"] = eta
+        self.config["qubits"] = self.qubits
         self.config["num_trap_circuits"] = int(
             np.ceil(2 * np.log((2 / (1 - eta)) / mu**2))
         )

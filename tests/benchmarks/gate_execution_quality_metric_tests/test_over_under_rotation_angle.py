@@ -48,17 +48,16 @@ def test_fit_func_simple():
     assert np.allclose(y, expected)
 
 
-def test_full_pipeline_on_noisy_simulator(tmp_path):
+@pytest.mark.parametrize("overrotation_amount", [(np.pi/100), (-1*np.pi/100)])
+def test_full_pipeline_on_noisy_simulator(tmp_path,overrotation_amount):
     """Full generate,run,analyze returns expected rotation on noisy simulator."""
     bench = OverUnderRotationAngle(
         qubits=1, delta_m=2, m_max=100, save_path=tmp_path
     )
     bench.generate_circuits()
-    overrotation_amount= np.pi/100
     sim = NoisySimulator(t1=0, t2=0, overrotation_amount=overrotation_amount)
     shots = 512
     bench.run(sim, num_shots = shots)
     result = bench.analyze()
     assert result["success"]
     assert np.isclose(result["OverUnderRotationAngle"], overrotation_amount, atol=1e-2)
-

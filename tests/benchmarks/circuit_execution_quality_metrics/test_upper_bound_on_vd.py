@@ -2,6 +2,7 @@
 
 Unit tests for the UpperBoundOnVD benchmark in qcmet.benchmarks.upper_bound_on_vd.
 """
+
 import unittest
 
 import numpy as np
@@ -30,6 +31,7 @@ class ParseTargetCircuitThrowsErrorTestCase(unittest.TestCase):
         vd = UpperBoundOnVD(circuit)
         self.assertRaises(ValueError, vd.parse_target_circuit, circuit)
 
+
 @pytest.fixture
 def upper_bound_on_vd_instance():
     """Fixture to create a target circuit satisfying the quantum AP restriction."""
@@ -50,9 +52,20 @@ def upper_bound_on_vd_instance():
     return vd
 
 
+def test_raise_error_len_qubits_not_len_target_circuit_qubits():
+    """Verify that ValueError raise occurs when number of qubits does not match number of qubits in target circuit."""
+    circ = QuantumCircuit(4)
+    with pytest.raises(
+        ValueError, match="3 qubits were specified but target circuit has 4 qubits."
+    ):
+        UpperBoundOnVD(target_circuit=circ, qubits=[0, 1, 2])
+
+
 def test_parse_target_circuit(upper_bound_on_vd_instance):
     """Verify that parse_target_circuit correctly breaks down the target circuit into cycles."""
-    upper_bound_on_vd_instance.parse_target_circuit(upper_bound_on_vd_instance.config["target_circuit"])
+    upper_bound_on_vd_instance.parse_target_circuit(
+        upper_bound_on_vd_instance.config["target_circuit"]
+    )
     circ_structure = upper_bound_on_vd_instance._target_circuit_gate_existence_in_cycles
     assert circ_structure is not None
     assert len(circ_structure) == 30
@@ -79,13 +92,25 @@ def test_generate_circuits(upper_bound_on_vd_instance):
     """Verify that trap circuits are generated correctly, which should give the zero state as output."""
     circuits = upper_bound_on_vd_instance._generate_circuits()
     assert circuits is not None
-    unit_vec = np.zeros(2 ** 4)
+    unit_vec = np.zeros(2**4)
     unit_vec[0] = 1.0
     for circuit in circuits:
         circuit = RemoveFinalMeasurements()(circuit)
         for gate in circuit.data:
-            assert gate.operation.name in ["id", "x", "y", "z", "h", "s", "sdg", "cz", "barrier", "measure"]
+            assert gate.operation.name in [
+                "id",
+                "x",
+                "y",
+                "z",
+                "h",
+                "s",
+                "sdg",
+                "cz",
+                "barrier",
+                "measure",
+            ]
         assert np.allclose(np.abs(Operator(circuit).to_matrix() @ unit_vec), unit_vec)
+
 
 def test_analyze_with_ideal_simulator(upper_bound_on_vd_instance):
     """Verify that the benchmark gives 0 in the noiseless case."""
@@ -95,6 +120,7 @@ def test_analyze_with_ideal_simulator(upper_bound_on_vd_instance):
     result = upper_bound_on_vd_instance.analyze()
     assert result["fails"] == 0
     assert np.allclose(result["upper_bound_on_vd"], 0.0)
+
 
 def test_analyze_with_noisy_simulator(upper_bound_on_vd_instance):
     """Verify that the benchmark gives non-0 output in the noisy case."""

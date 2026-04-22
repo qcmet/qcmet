@@ -1,11 +1,12 @@
 """Unit tests for the MirroredCircuits benchmark in QCMet."""
 
+import json
+
 import pytest
 from qiskit import QiskitError, QuantumCircuit
 from qiskit.quantum_info import Clifford, Statevector, random_clifford
 
-import qcmet
-from qcmet import MirroredCircuits
+from qcmet import AerSimulator, FileManager, MirroredCircuits
 
 
 @pytest.fixture
@@ -218,7 +219,7 @@ def test_analyze_polarization(mirrored_circuits_instance):
         state = Statevector.from_int(
             0, 2**mirrored_circuits_instance.num_qubits
         ).evolve(c.remove_final_measurements(False))
-        probs = qcmet.AerSimulator.reverse_bitstrings(state.probabilities_dict())
+        probs = AerSimulator.reverse_bitstrings(state.probabilities_dict())
         measurement_outputs.append(probs)
 
     mirrored_circuits_instance.experiment_data["circuit_measurements"] = (
@@ -230,3 +231,29 @@ def test_analyze_polarization(mirrored_circuits_instance):
     result = mirrored_circuits_instance._analyze()
     assert "J" in result
     assert 0.99999 <= result["J"] <= 1.0  # Should be close to perfect polarization
+
+
+def test_config_clifford_output(tmp_path):
+    """Test correct clifford output for config file."""
+    qc = QuantumCircuit(1)
+    qc.x(0)
+    save_path = FileManager(benchmark_name="mirror", run_id="test", base_path=tmp_path)
+    experiment = MirroredCircuits(
+        qubits=1,
+        num_circuits=1,
+        m=1,
+        clifford_operators=[Clifford(qc)],
+        save_path=save_path,
+    )
+    experiment.generate_circuits()
+
+    with open(
+        save_path.base_path / "mirror_test" / "config" / "experiment_config.json", "r"
+    ) as f:
+        config = json.load(f)
+    assert any(
+        s in config["cliffords_base_circuit"][0]["stabilizer"] for s in ["-Z", "+Z"]
+    )
+    assert any(
+        d in config["cliffords_base_circuit"][0]["destabilizer"] for d in ["-X", "+X"]
+    )

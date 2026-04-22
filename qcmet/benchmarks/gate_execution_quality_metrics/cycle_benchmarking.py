@@ -65,6 +65,7 @@ class CycleBenchmarking(BaseBenchmark):
         self,
         g_layer: QuantumCircuit,
         repetitions_list: list,
+        qubits: int | List[int] = None,
         num_random_sequences: int = 10,
         full_pauli_subspace: bool = True,
         subspace_size: int | None = None,
@@ -79,6 +80,9 @@ class CycleBenchmarking(BaseBenchmark):
                 Must be a QuantumCircuit on n qubits.
             repetitions_list (list): List of cycle repetition counts to test.
                 Example: [2, 4, 8, 10]
+            qubits (int | List[int], optional): The number of qubits as either a list of qubit
+                indices or int specifying number of qubits. If no parameter given, defaults
+                to number of qubits in g_layer.
             num_random_sequences (int, optional): Number of random Pauli-twirled
                 sequences per Pauli channel. Defaults to 10.
             full_pauli_subspace (bool, optional): Whether to use the full Pauli
@@ -102,7 +106,14 @@ class CycleBenchmarking(BaseBenchmark):
         # Get number of qubits from g_layer
         num_qubits = g_layer.num_qubits
 
-        super().__init__("CycleBenchmarking", qubits=num_qubits, save_path=save_path)
+        if qubits is None:
+            qubits = np.arange(0, num_qubits).tolist()
+
+        else:       
+            if len(qubits) != num_qubits:
+                raise ValueError("number of qubits does not match number of qubits in g_layer")
+
+        super().__init__("CycleBenchmarking", qubits=qubits, save_path=save_path)
 
         if fidelity_method not in ["fit", "ratio"]:
             raise ValueError("fidelity_method must be either 'fit' or 'ratio'")
