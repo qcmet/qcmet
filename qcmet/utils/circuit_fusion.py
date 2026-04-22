@@ -1,6 +1,12 @@
+"""circuit_fusion.py.
+
+This module provides functions for fusing circuits on different qubits
+into one circuit that contains the sub-circuits in parallel.
+"""
+
 from __future__ import annotations
 
-from typing import Any, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 from qiskit import QuantumCircuit
 
@@ -94,6 +100,75 @@ def _append_segment_to_fused(
         fused.append(op, fused_qargs, fused_cargs)
 
 
+def _determine_num_fused(fuse_mode: str, lengths: List[int]) -> int:
+    """Determine how many fused circuits to build."""
+    if fuse_mode == "strict":
+        if len(set(lengths)) != 1:
+            raise ValueError(
+                f"Groups have different numbers of circuits: {lengths}. "
+                "Use fuse_mode='min' or 'pad' if that is intended."
+            )
+        num_fused = lengths[0]
+    elif fuse_mode == "min":
+        num_fused = min(lengths)
+    elif fuse_mode == "pad":
+        num_fused = max(lengths)
+    else:
+        raise ValueError("fuse_mode must be one of: 'strict', 'min', 'pad'")
+    return num_fused
+
+
+def _fuse_streams_into_circuit(
+    streams: List[Dict[str, Any]],
+    max_num_qubits: int,
+    total_clbits: int,
+    fused_index: int,
+) -> QuantumCircuit:
+    """Fuse one set of same-index streams into a single circuit."""
+    fused = QuantumCircuit(max_num_qubits, total_clbits, name=f"fused_{fused_index}")
+
+    for stream in streams:
+        fused.global_phase += stream["circ"].global_phase
+
+    while any(stream["pointer"] < len(stream["tokens"]) for stream in streams):
+        progressed = False
+
+        for stream in streams:
+            ptr = stream["pointer"]
+            tokens = stream["tokens"]
+
+            if ptr < len(tokens) and tokens[ptr][0] == "segment":
+                _append_segment_to_fused(
+                    fused=fused,
+                    source_circuit=stream["circ"],
+                    instructions=tokens[ptr][1],
+                    cindex_map=stream["cindex_map"],
+                )
+                stream["pointer"] += 1
+                progressed = True
+
+        merged_barrier_qubits = set()
+
+        for stream in streams:
+            ptr = stream["pointer"]
+            tokens = stream["tokens"]
+
+            if ptr < len(tokens) and tokens[ptr][0] == "barrier":
+                merged_barrier_qubits.update(tokens[ptr][1])
+                stream["pointer"] += 1
+                progressed = True
+
+        if merged_barrier_qubits:
+            fused.barrier(*[fused.qubits[q] for q in sorted(merged_barrier_qubits)])
+
+        if not progressed:
+            raise RuntimeError(
+                "Fusion made no progress; this indicates an internal logic error."
+            )
+
+    return fused
+
+
 def fuse_circuit_groups(
     circuit_groups: List[List[QuantumCircuit]],
     fuse_mode: str = "strict",
@@ -119,6 +194,7 @@ def fuse_circuit_groups(
         clbit_layout (List[List[int]]):
             A list aligned with the input groups. clbit_layout[i] is the classical-bit
             slice reserved for group i inside each fused circuit.
+
     """
     normalized_groups = []
     lengths = []
@@ -148,19 +224,7 @@ def fuse_circuit_groups(
 
     _validate_disjoint_groups(normalized_groups)
 
-    if fuse_mode == "strict":
-        if len(set(lengths)) != 1:
-            raise ValueError(
-                f"Groups have different numbers of circuits: {lengths}. "
-                "Use fuse_mode='min' or 'pad' if that is intended."
-            )
-        num_fused = lengths[0]
-    elif fuse_mode == "min":
-        num_fused = min(lengths)
-    elif fuse_mode == "pad":
-        num_fused = max(lengths)
-    else:
-        raise ValueError("fuse_mode must be one of: 'strict', 'min', 'pad'")
+    num_fused = _determine_num_fused(fuse_mode, lengths)
 
     clbit_layout = []
     clbit_offset = 0
@@ -173,7 +237,6 @@ def fuse_circuit_groups(
     fused_circuits = []
 
     for fused_index in range(num_fused):
-        fused = QuantumCircuit(max_num_qubits, total_clbits, name=f"fused_{fused_index}")
         streams = []
 
         for group_index, circuits in enumerate(normalized_groups):
@@ -182,8 +245,6 @@ def fuse_circuit_groups(
 
             circ = circuits[fused_index]
             tokens = _tokenize_circuit_by_barriers(circ)
-
-            fused.global_phase += circ.global_phase
 
             streams.append(
                 {
@@ -194,42 +255,6 @@ def fuse_circuit_groups(
                 }
             )
 
-        while any(stream["pointer"] < len(stream["tokens"]) for stream in streams):
-            progressed = False
-
-            # Append all next non-barrier segments first
-            for stream in streams:
-                ptr = stream["pointer"]
-                tokens = stream["tokens"]
-
-                if ptr < len(tokens) and tokens[ptr][0] == "segment":
-                    _append_segment_to_fused(
-                        fused=fused,
-                        source_circuit=stream["circ"],
-                        instructions=tokens[ptr][1],
-                        cindex_map=stream["cindex_map"],
-                    )
-                    stream["pointer"] += 1
-                    progressed = True
-
-            # Merge all next barriers into a single fused barrier
-            merged_barrier_qubits = set()
-
-            for stream in streams:
-                ptr = stream["pointer"]
-                tokens = stream["tokens"]
-
-                if ptr < len(tokens) and tokens[ptr][0] == "barrier":
-                    merged_barrier_qubits.update(tokens[ptr][1])
-                    stream["pointer"] += 1
-                    progressed = True
-
-            if merged_barrier_qubits:
-                fused.barrier(*[fused.qubits[q] for q in sorted(merged_barrier_qubits)])
-
-            if not progressed:
-                raise RuntimeError("Fusion made no progress, this indicates an internal logic error.")
-
-        fused_circuits.append(fused)
+        fused_circuits.append(_fuse_streams_into_circuit(streams, max_num_qubits, total_clbits, fused_index))
 
     return fused_circuits, clbit_layout

@@ -121,6 +121,7 @@ class BenchmarkCollection(BaseBenchmark):
 
         Returns:
             List[QuantumCircuit]: Flattened list of all child benchmark circuits.
+
         """
         self._reset_cached_state()
 
@@ -159,6 +160,7 @@ class BenchmarkCollection(BaseBenchmark):
 
         Returns:
             List[QuantumCircuit]: The fused circuits.
+
         """
         if self._original_circuits is None:
             raise RuntimeError("Benchmark circuit groups are not available. Call generate_circuits() first.")
@@ -169,7 +171,7 @@ class BenchmarkCollection(BaseBenchmark):
             circuit_groups = [list(group) for group in circuit_groups]
             if len(circuit_groups) != len(self._benchmarks):
                 raise ValueError("circuit_groups must have the same length as the number of benchmarks.")
-            for i, (orig_group, new_group) in enumerate(zip(self._original_circuits, circuit_groups)):
+            for i, (orig_group, new_group) in enumerate(zip(self._original_circuits, circuit_groups, strict=True)):
                 if len(orig_group) != len(new_group):
                     raise ValueError(f"circuit_groups[{i}] has length {len(new_group)}, "
                                      f"but benchmark {i} has {len(orig_group)} circuits.")
@@ -254,11 +256,15 @@ class BenchmarkCollection(BaseBenchmark):
         per_group_counts = [[] for _ in self._clbits]
 
         for counts in fused_counts_list:
+            # Convert counts into qiskit's little-endian format
+            counts = {bitstring[::-1]: value for bitstring, value in counts.items()}
             for group_index, clbits in enumerate(self._clbits):
                 sub_counts = dict(marginal_distribution(counts, indices=list(clbits)))
+                # Convert back to big-endian
+                sub_counts = {bitstring[::-1]: value for bitstring, value in sub_counts.items()}
                 per_group_counts[group_index].append(sub_counts)
 
-        for benchmark, counts in zip(self._benchmarks, per_group_counts):
+        for benchmark, counts in zip(self._benchmarks, per_group_counts, strict=True):
             benchmark.load_circuit_measurements(counts)
             benchmark._runtime_params = self._runtime_params
 
@@ -269,6 +275,7 @@ class BenchmarkCollection(BaseBenchmark):
             dict: A dictionary containing the results of each benchmark. Each key-value pair corresponds to
                   the name of a benchmark in the collection prepended with an index label, and its respective
                   result which is another dictionary.
+
         """
         all_results = {}
 
@@ -336,13 +343,3 @@ class BenchmarkCollection(BaseBenchmark):
         for i, benchmark in enumerate(benchmarks_with_plotting):
             benchmark.plot(axes[i])
             axes[i].set_title(benchmark_labels[i])
-
-
-if __name__ == "__main__":
-    from qcmet import NoisySimulator, CliffordRB
-
-    device = NoisySimulator()
-    qft1 = CliffordRB(qubits=[0], m_list=[2,4,8,16,32,64])
-    qft2 = CliffordRB(qubits=[1], m_list=[2,4,8,16,32,64])
-    collection = BenchmarkCollection([qft1, qft2], fuse_circuits=True, save_path="/mnt/d/pythonProject/qcmet_res")
-    collection(device)
