@@ -8,6 +8,7 @@ Here the benchmarking procedure follows M3.4 from arxiv:2502.06717
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
@@ -51,7 +52,7 @@ class InterleavedRB(BaseBenchmark):
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
         """
-        super().__init__("InterleavedRB", qubits=qubits, save_path=save_path)
+        super().__init__("InterleavedRB", qubits, save_path)
         self.config["m_list"] = m_list
         self.config["circs_per_m"] = circs_per_m
 
@@ -62,11 +63,18 @@ class InterleavedRB(BaseBenchmark):
             (gate, count) for gate, count in target_clifford.count_ops().items()
         ]
 
+        if save_path:
+            rb_save_path = self.file_manager.base_path / "InterleavedRB_sub_results" / "rb"
+            irb_save_path = self.file_manager.base_path / "InterleavedRB_sub_results" /"irb"
+        else:
+            rb_save_path = None
+            irb_save_path = None
+
         self.rb_experiment = CliffordRB(
-            m_list, circs_per_m, qubits, target_clifford=None, save_path=save_path
+            m_list, circs_per_m, qubits, target_clifford=None, save_path=rb_save_path
         )
         self.irb_experiment = CliffordRB(
-            m_list, circs_per_m, qubits, target_clifford, save_path
+            m_list, circs_per_m, qubits, target_clifford, save_path=irb_save_path
         )
 
     def _generate_circuits(self):
