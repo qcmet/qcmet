@@ -48,7 +48,7 @@ class AerSimulatorBase(QiskitDevice):
             optimization_level=0, backend=self.sim
         )
 
-    def run(self, circuits, num_shots):
+    def _run(self, circuits, num_shots):
         """Execute quantum circuits on the simulator with transpilation.
 
         Applies the preset optimization pass manager to all input circuits,

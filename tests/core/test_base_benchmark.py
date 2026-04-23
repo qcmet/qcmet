@@ -9,7 +9,7 @@ from qiskit import QuantumCircuit
 
 from qcmet.benchmarks import BaseBenchmark
 from qcmet.core import FileManager
-from qcmet.devices import BaseDevice
+from qcmet.devices import BaseDevice, IdealSimulator
 
 
 class DummyBenchmark(BaseBenchmark):
@@ -56,10 +56,13 @@ class CompleteBenchmark(BaseBenchmark):
     """Subclass that implements _generate_circuits, _run_online, _analyze and _plot."""
 
     def _generate_circuits(self):
-        qc = QuantumCircuit(1)
-        qc.h(0)
-        qc.measure_all()
-        return [qc]
+        qc1 = QuantumCircuit(1)
+        qc1.h(0)
+        qc1.measure_all()
+        qc2 = QuantumCircuit(1)
+        qc2.x(0)
+        qc2.measure_all()
+        return [qc1, qc2]
 
     def _run_online(self):
         return {}
@@ -70,6 +73,24 @@ class CompleteBenchmark(BaseBenchmark):
     def _plot(self, axes):
         axes.plot([0, 1], [1, 0])
         axes.set_title("Test Plot")
+
+
+class MaxJobsBenchmark(BaseBenchmark):
+    """Subclass that implements _generate_circuits. _run and _analyze."""
+
+    def _generate_circuits(self):
+        qc1 = QuantumCircuit(1)
+        qc1.measure_all()
+        qc2 = QuantumCircuit(1)
+        qc2.x(0)
+        qc2.measure_all()
+        return [qc1] * 3 + [qc2] * 2
+
+    def _run(self):
+        return {}
+
+    def _analyze(self):
+        return {"dummy": True}
 
 
 @pytest.fixture
@@ -350,3 +371,16 @@ def test_call():
     results = experiment(device=BaseDevice, axes=ax)
     assert ax.get_title() == "Test Plot"
     assert results == {"dummy": True}
+
+
+def test_max_circs_per_job():
+    """Verify that using max_circs_per_job returns expected number of measurements, including when no. of circuits in benchmark is not divisible by max_circs_per_job."""
+    experiment = MaxJobsBenchmark(name="test", qubits=1)
+    experiment.generate_circuits()
+    experiment.run(device=IdealSimulator(), num_shots=100, max_circs_per_job=3)
+    assert len(experiment.experiment_data["circuit_measurements"]) == 5
+    assert experiment.experiment_data.loc[0, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[1, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[2, "circuit_measurements"]["0"] == 100
+    assert experiment.experiment_data.loc[3, "circuit_measurements"]["1"] == 100
+    assert experiment.experiment_data.loc[4, "circuit_measurements"]["1"] == 100
