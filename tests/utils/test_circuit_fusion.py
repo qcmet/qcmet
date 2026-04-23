@@ -47,19 +47,6 @@ def test_fuse_circuit_groups_strict_mode():
     assert fused_circuits[0].num_clbits == 3
 
 
-def test_fuse_circuit_groups_min_mode():
-    """Verify that min fusion truncates to the smallest group length."""
-    group0 = [_single_qubit_measured_circuit(0)]
-    group1 = [
-        _single_qubit_measured_circuit(1),
-        _single_qubit_measured_circuit(1, apply_x=False),
-    ]
-
-    fused_circuits, _ = fuse_circuit_groups([group0, group1], fuse_mode="min")
-
-    assert len(fused_circuits) == 1
-
-
 def test_fuse_circuit_groups_pad_mode():
     """Verify that pad fusion extends to the longest group length."""
     group0 = [_single_qubit_measured_circuit(0)]

@@ -106,15 +106,13 @@ def _determine_num_fused(fuse_mode: str, lengths: List[int]) -> int:
         if len(set(lengths)) != 1:
             raise ValueError(
                 f"Groups have different numbers of circuits: {lengths}. "
-                "Use fuse_mode='min' or 'pad' if that is intended."
+                "Use fuse_mode='pad' if that is intended."
             )
         num_fused = lengths[0]
-    elif fuse_mode == "min":
-        num_fused = min(lengths)
     elif fuse_mode == "pad":
         num_fused = max(lengths)
     else:
-        raise ValueError("fuse_mode must be one of: 'strict', 'min', 'pad'")
+        raise ValueError("fuse_mode must be one of: 'strict', 'pad'")
     return num_fused
 
 
@@ -181,10 +179,9 @@ def fuse_circuit_groups(
 
     Args:
         circuit_groups (List[List[QuantumCircuit]]): Each group corresponds to the list of circuits of one benchmark.
-        fuse_mode ("strict" or "min" or "pad"):
+        fuse_mode ("strict" or "pad"):
             How to handle groups of different lengths:
             - "strict": all groups must have the same number of circuits
-            - "min": only fuse up to the shortest group length
             - "pad": fuse up to the longest group length; shorter groups simply
                      contribute nothing to later fused circuits
 

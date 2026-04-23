@@ -46,11 +46,10 @@ class BenchmarkCollection(BaseBenchmark):
                 "Benchmark{index}_{benchmark.name}" if no identifiers provided or
                 as "identifier" if the benchmarks are passed in as a dictionary.
             fuse_circuits (bool): Whether to fuse the circuits to run benchmarks in parallel. Defaults to False.
-            fuse_mode ("strict" or "min" or "pad"):
+            fuse_mode ("strict" or "pad"):
                 If fuse_circuits is set to True, how to handle benchmarks with different numbers of circuits:
-                - "strict": all benchmarks must have the same number of circuits
-                - "min": only fuse up to the smallest number of circuits
-                - "pad": fuse all circuits; smaller benchmarks simply contribute nothing to later fused circuits
+                - "strict": all benchmarks must have the same number of circuits.
+                - "pad": fuse all circuits; smaller benchmarks simply contribute nothing to later fused circuits.
             save_path (str | Path | FileManager, optional): Path to save benchmark outputs for all benchmarks.
                 Overwrites the save paths of each benchmark if provided. Defaults to None.
 
@@ -153,7 +152,7 @@ class BenchmarkCollection(BaseBenchmark):
         e.g., when the circuits need another transpilation pass before fusion.
 
         Args:
-            fuse_mode: Passed to fuse_circuit_groups. One of "strict", "min", or "pad".
+            fuse_mode: Passed to fuse_circuit_groups. One of "strict" or "pad".
             circuit_groups: Optional grouped circuits to fuse instead of the benchmarks'
                 own stored circuits. If provided, its group sizes must match the original
                 benchmark circuit counts.
