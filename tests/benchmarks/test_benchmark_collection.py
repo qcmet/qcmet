@@ -1,6 +1,6 @@
 """test_benchmark_collection.py.
 
-Unit tests for the BenchmarkCollection in qcmet.utils.benchmark_collection.
+Unit tests for the BenchmarkCollection in qcmet.benchmarks.benchmark_collection.
 """
 
 from typing import Dict, List
@@ -52,8 +52,48 @@ class DummyBenchmark2Qubits(BaseBenchmark):
 
     def save(self):
         """Mock save function."""
-        self._experiment_data = {}
-        self._experiment_data["saved"] = True
+        self._experiment_data = {"saved": True}
+
+
+class DummyBenchmark1Qubit2Circuits(BaseBenchmark):
+    """One-qubit benchmark with two circuits for fusion tests."""
+
+    def _generate_circuits(self) -> List[QuantumCircuit] | Dict[str, any]:
+        c0 = QuantumCircuit(1)
+        c0.x(0)
+        c0.measure_all()
+
+        c1 = QuantumCircuit(1)
+        c1.id(0)
+        c1.measure_all()
+        return [c0, c1]
+
+    def _analyze(self) -> Dict[str, any]:
+        return {
+            "circuit0": self._experiment_data["circuit_measurements"].iloc[0],
+            "circuit1": self._experiment_data["circuit_measurements"].iloc[1],
+        }
+
+
+class DummyBenchmark2Qubits2Circuits(BaseBenchmark):
+    """Two-qubit benchmark with two circuits for fusion tests."""
+
+    def _generate_circuits(self) -> List[QuantumCircuit] | Dict[str, any]:
+        c0 = QuantumCircuit(2)
+        c0.x(0)
+        c0.x(1)
+        c0.measure_all()
+
+        c1 = QuantumCircuit(2)
+        c1.x(1)
+        c1.measure_all()
+        return [c0, c1]
+
+    def _analyze(self) -> Dict[str, any]:
+        return {
+            "circuit0": self._experiment_data["circuit_measurements"].iloc[0],
+            "circuit1": self._experiment_data["circuit_measurements"].iloc[1],
+        }
 
 
 @pytest.fixture
@@ -65,6 +105,14 @@ def benchmark_collection_instance(request):
     if request.cls is not None:
         request.cls.benchmark_collection = benchmark_collection
     return benchmark_collection
+
+
+@pytest.fixture
+def fused_benchmark_collection_instance():
+    """Fixture to create a fused benchmark collection on disjoint qubits."""
+    dummy1 = DummyBenchmark1Qubit2Circuits("DummyFuse1", [0])
+    dummy2 = DummyBenchmark2Qubits2Circuits("DummyFuse2", [1, 2])
+    return BenchmarkCollection([dummy1, dummy2], fuse_circuits=True, fuse_mode="strict")
 
 
 def test_create_benchmark_labels(benchmark_collection_instance):
@@ -94,6 +142,67 @@ def test_generate_circuits(benchmark_collection_instance):
     """Verify that the generated circuits contains all circuits from all sub-benchmarks."""
     circuits = benchmark_collection_instance._generate_circuits()
     assert len(circuits) == 3
+    assert benchmark_collection_instance._original_circuits is not None
+    assert [len(group) for group in benchmark_collection_instance._original_circuits] == [1, 2]
+
+
+def test_generate_circuits_with_fusion_flag(fused_benchmark_collection_instance):
+    """Verify that generation can automatically fuse circuits when configured."""
+    circuits = fused_benchmark_collection_instance._generate_circuits()
+
+    assert len(circuits) == 2
+    assert fused_benchmark_collection_instance._fused is True
+    assert fused_benchmark_collection_instance._fused_circuits == circuits
+    assert fused_benchmark_collection_instance._clbits == [[0], [1, 2]]
+    assert all(circuit.num_clbits == 3 for circuit in circuits)
+
+
+def test_fuse_circuits_after_generate():
+    """Verify that circuits can be fused after standard generation."""
+    collection = BenchmarkCollection(
+        [
+            DummyBenchmark1Qubit2Circuits("DummyFuse1", [0]),
+            DummyBenchmark2Qubits2Circuits("DummyFuse2", [1, 2]),
+        ]
+    )
+    collection.generate_circuits()
+
+    fused_circuits = collection.fuse_circuits()
+
+    assert collection._fused is True
+    assert collection._fused_circuits == fused_circuits
+    assert len(fused_circuits) == 2
+    assert collection._clbits == [[0], [1, 2]]
+
+
+def test_fuse_circuits_without_generate_raises_error():
+    """Verify that fuse_circuits requires circuits to be generated first."""
+    collection = BenchmarkCollection(
+        [
+            DummyBenchmark1Qubit2Circuits("DummyFuse1", [0]),
+            DummyBenchmark2Qubits2Circuits("DummyFuse2", [1, 2]),
+        ]
+    )
+    with pytest.raises(RuntimeError):
+        collection.fuse_circuits()
+
+
+def test_fuse_circuits_with_wrong_group_count_raises_error(fused_benchmark_collection_instance):
+    """Verify that fuse_circuits rejects the wrong number of override groups."""
+    fused_benchmark_collection_instance.generate_circuits()
+    with pytest.raises(ValueError):
+        fused_benchmark_collection_instance.fuse_circuits(circuit_groups=[[QuantumCircuit(1)]])
+
+
+def test_fuse_circuits_with_wrong_group_lengths_raises_error(fused_benchmark_collection_instance):
+    """Verify that fuse_circuits rejects override groups with wrong lengths."""
+    fused_benchmark_collection_instance.generate_circuits()
+    override_groups = [
+        [QuantumCircuit(1)],
+        [QuantumCircuit(3, 2), QuantumCircuit(3, 2)],
+    ]
+    with pytest.raises(ValueError):
+        fused_benchmark_collection_instance.fuse_circuits(circuit_groups=override_groups)
 
 
 def test_run_with_universal_shots(benchmark_collection_instance):
@@ -127,6 +236,14 @@ def test_run_with_wrong_shots_list(benchmark_collection_instance):
         benchmark_collection_instance.run(device, [100, 200, 300])
 
 
+def test_run_with_different_shots_when_fused_raises_error(fused_benchmark_collection_instance):
+    """Verify that fused collections reject per-benchmark shot lists."""
+    device = IdealSimulator()
+    fused_benchmark_collection_instance.generate_circuits()
+    with pytest.raises(ValueError):
+        fused_benchmark_collection_instance.run(device, [100, 200])
+
+
 def test_analyze_with_universal_shots(benchmark_collection_instance):
     """Verify that analyze works as expected with universal shots by distributing the outcomes to sub-benchmarks."""
     device = IdealSimulator()
@@ -149,6 +266,20 @@ def test_analyze_with_different_shots(benchmark_collection_instance):
     assert results["Benchmark0_Dummy1"]["1"] == 100
     assert results["Benchmark1_Dummy2"]["circuit0"]["11"] == 200
     assert results["Benchmark1_Dummy2"]["circuit1"]["11"] == 200
+
+
+def test_analyze_with_fused_shots(fused_benchmark_collection_instance):
+    """Verify that fused counts are split back to the correct child benchmarks."""
+    device = IdealSimulator()
+    fused_benchmark_collection_instance.generate_circuits()
+    fused_benchmark_collection_instance.run(device, num_shots=100)
+
+    results = fused_benchmark_collection_instance.analyze()
+
+    assert results["Benchmark0_DummyFuse1"]["circuit0"]["1"] == 100
+    assert results["Benchmark0_DummyFuse1"]["circuit1"]["0"] == 100
+    assert results["Benchmark1_DummyFuse2"]["circuit0"]["11"] == 100
+    assert results["Benchmark1_DummyFuse2"]["circuit1"]["01"] == 100
 
 
 def test_has_plotting(benchmark_collection_instance):
@@ -176,6 +307,7 @@ def test_plot_without_axes():
     assert axes[0].get_title() == benchmark_collection._benchmark_labels[0]
     assert axes[1].get_title() == benchmark_collection._benchmark_labels[1]
     assert axes[2].get_title() == benchmark_collection._benchmark_labels[3]
+    plt.close("all")
 
 
 def test_plot_with_axes():
@@ -193,22 +325,20 @@ def test_plot_with_axes():
     assert axes[1].get_title() == benchmark_collection._benchmark_labels[0]
     assert axes[2].get_title() == benchmark_collection._benchmark_labels[1]
     assert axes[0].get_title() == benchmark_collection._benchmark_labels[3]
+    plt.close("all")
 
 
 def test_plot_with_wrong_axes_list(benchmark_collection_instance):
     """Verify that plot correctly throws an error if provided with mismatching list of axes."""
     _, axes = plt.subplots(ncols=10)
     with pytest.raises(ValueError):
-        benchmark_collection_instance.plot(axes)
+        benchmark_collection_instance.plot(list(axes))
+    plt.close("all")
 
 
 def test_save(benchmark_collection_instance):
     """Verify that save correctly calls the save function of each sub-benchmark."""
     benchmark_collection_instance.set_save_path("test")
     benchmark_collection_instance.save()
-    assert (
-        benchmark_collection_instance._benchmarks[0]._experiment_data["saved"] is True
-    )
-    assert (
-        benchmark_collection_instance._benchmarks[1]._experiment_data["saved"] is True
-    )
+    assert benchmark_collection_instance._benchmarks[0]._experiment_data["saved"] is True
+    assert benchmark_collection_instance._benchmarks[1]._experiment_data["saved"] is True
