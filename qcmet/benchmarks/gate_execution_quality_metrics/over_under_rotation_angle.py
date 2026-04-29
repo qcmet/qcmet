@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from qcmet.core import FileManager
 
 import numpy as np
+import scipy as sp
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit import Gate
 from qiskit.circuit.library import SXGate
@@ -45,7 +46,7 @@ class OverUnderRotationAngle(BaseBenchmark):
 
     def __init__(
         self,
-        qubits: int | List[int] = 1,
+        qubit_index: int = 0,
         delta_m: int = 20,
         gate: Gate = SXGate,
         m_max: int = 200,
@@ -55,16 +56,17 @@ class OverUnderRotationAngle(BaseBenchmark):
         """Initialize the OverUnderRotationAngle benchmark.
 
         Args:
+            qubit_index (int): The qubit index for routing. Defaults to 0.
             delta_m (int): Step size in repeat count m between pseudoidentity circuits.
             m_max (int): Maximum number of repeats (inclusive).
-            qubits (int | List[int]): The number of qubits as either a list of qubit
-                indices or int specifying number of qubits.
             gate (qiskit.circuit.Gate): Gate to measure over-under rotation
             num_gates_for_id (int): Number of SX gates in each repeated pseudoidentity.
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
         """
-        super().__init__("OverUnderRotationAngle", qubits=qubits, save_path=save_path)
+        super().__init__(
+            "OverUnderRotationAngle", qubits=[qubit_index], save_path=save_path
+        )
 
         self._check_num_gates_for_id(gate, num_gates_for_id)
         self.config["delta_m"] = delta_m
@@ -72,6 +74,14 @@ class OverUnderRotationAngle(BaseBenchmark):
         self.config["m_max"] = m_max
         self.config["num_gates_for_id"] = num_gates_for_id
         self.config["m_array"] = np.arange(0, m_max + 1, delta_m)
+
+        # check that repeating gate for the right number of times corresponds to id
+        assert np.allclose(
+            np.linalg.matrix_power(
+                self.config["gate"].to_matrix(), self.config["num_gates_for_id"]
+            ),
+            np.eye(2),
+        )
 
     def _check_num_gates_for_id(self, gate, num_gates_for_id):
         """Verify that repeating `gate` `num_gates_for_id` times equals identity.
@@ -112,9 +122,38 @@ class OverUnderRotationAngle(BaseBenchmark):
         for m in self.config["m_array"]:
             quantum_reg = QuantumRegister(self.num_qubits)
             qc = QuantumCircuit(quantum_reg)
-            # Prepare qubit on the equator of bloch sphere
-            qc.sx(0)
-            qc.rz(np.pi, 0)
+
+            # Prepare qubit orthogonal to rotation axis
+
+            # get rotation axis
+            U = self.config["gate"].to_matrix()
+
+            U = U / np.sqrt(np.linalg.det(U))
+
+            sx = np.array([[0, 1], [1, 0]], complex)
+            sy = np.array([[0, -1j], [1j, 0]], complex)
+            sz = np.array([[1, 0], [0, -1]], complex)
+            paulis = [sx, sy, sz]
+
+            A = sp.linalg.logm(U)  # A = -i θ/2 n·σ
+            coeffs = np.array([(1j * np.trace(p @ A)).real for p in paulis])
+
+            n = coeffs / np.linalg.norm(coeffs)
+
+            # create an orthogonal Bloch vector
+            ref = np.array([0, 0, 1])
+            if abs(np.dot(n, ref)) > 0.9:
+                ref = np.array([0, 1, 0])
+            v = np.cross(n, ref)
+
+            # preparation gate
+            theta = np.acos(v[2])
+            phi = np.atan2(v[1], v[0])
+
+            qc = QuantumCircuit(1)
+            qc.rz(phi, 0)
+            qc.ry(theta, 0)
+
             # Repeat pseudoidentity m times
             for _ in range(m):
                 # Pseudoidentity formed by repeating sx gate 4 times
@@ -123,6 +162,7 @@ class OverUnderRotationAngle(BaseBenchmark):
                         self.config["gate"], np.arange(0, len(self.qubits)).tolist()
                     )
                     qc.barrier()
+
             # Measure qubit (state preparation step inversion not needed)
             qc.measure_all()
             data.append(self._circ_with_metadata_dict(qc, m=m))
