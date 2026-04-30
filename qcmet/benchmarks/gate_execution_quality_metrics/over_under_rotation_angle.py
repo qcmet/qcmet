@@ -119,40 +119,53 @@ class OverUnderRotationAngle(BaseBenchmark):
 
         """
         data = []
+
+        # Get the angles for rotating the qubit into the right frame
+
+        # Get rotation axis to prepare qubit orthogonally to it
+        U = self.config["gate"].to_matrix()
+        U = U / np.sqrt(np.linalg.det(U))
+
+        sx = np.array([[0, 1], [1, 0]], complex)
+        sy = np.array([[0, -1j], [1j, 0]], complex)
+        sz = np.array([[1, 0], [0, -1]], complex)
+
+        n_rotation = np.array(
+            [
+                np.imag(np.trace(U @ sx)),
+                np.imag(np.trace(U @ sy)),
+                np.imag(np.trace(U @ sz)),
+            ]
+        )
+
+        n_rotation = n_rotation / np.linalg.norm(n_rotation)
+
+        # create an orthogonal Bloch vector
+        ref = np.array([0, 0, 1])
+        if abs(np.dot(n_rotation, ref)) > 0.9:
+            ref = np.array([0, 1, 0])
+        prep_axis = np.cross(n_rotation, ref)
+
+        prep_axis = prep_axis / np.linalg.norm(prep_axis)
+
+        # preparation gate angles
+        theta_prep = np.acos(prep_axis[2])
+        phi_prep = np.atan2(prep_axis[1], prep_axis[0])
+
+        # measurement gate angles (measurement axis orthogonal to prep and rotation)
+        measurement_axis = np.cross(prep_axis, n_rotation)
+        measurement_axis = measurement_axis / np.linalg.norm(measurement_axis)
+
+        # read out basis rotation
+        theta_readout = np.acos(measurement_axis[2])
+        phi_readout = np.atan2(measurement_axis[1], measurement_axis[0])
+
         for m in self.config["m_array"]:
             quantum_reg = QuantumRegister(self.num_qubits)
             qc = QuantumCircuit(quantum_reg)
 
-            # Prepare qubit orthogonal to rotation axis
-
-            # get rotation axis
-            U = self.config["gate"].to_matrix()
-
-            U = U / np.sqrt(np.linalg.det(U))
-
-            sx = np.array([[0, 1], [1, 0]], complex)
-            sy = np.array([[0, -1j], [1j, 0]], complex)
-            sz = np.array([[1, 0], [0, -1]], complex)
-            paulis = [sx, sy, sz]
-
-            A = sp.linalg.logm(U)  # A = -i θ/2 n·σ
-            coeffs = np.array([(1j * np.trace(p @ A)).real for p in paulis])
-
-            n = coeffs / np.linalg.norm(coeffs)
-
-            # create an orthogonal Bloch vector
-            ref = np.array([0, 0, 1])
-            if abs(np.dot(n, ref)) > 0.9:
-                ref = np.array([0, 1, 0])
-            v = np.cross(n, ref)
-
-            # preparation gate
-            theta = np.acos(v[2])
-            phi = np.atan2(v[1], v[0])
-
-            qc = QuantumCircuit(1)
-            qc.rz(phi, 0)
-            qc.ry(theta, 0)
+            qc.ry(theta_prep, 0)
+            qc.rz(phi_prep, 0)
 
             # Repeat pseudoidentity m times
             for _ in range(m):
@@ -163,7 +176,10 @@ class OverUnderRotationAngle(BaseBenchmark):
                     )
                     qc.barrier()
 
-            # Measure qubit (state preparation step inversion not needed)
+            # Measure qubit
+            qc.ry(theta_readout, 0)
+            qc.rz(phi_readout, 0)
+
             qc.measure_all()
             data.append(self._circ_with_metadata_dict(qc, m=m))
 
