@@ -144,7 +144,7 @@ class OverUnderRotationAngle(BaseBenchmark):
         phi_prep = np.atan2(prep_axis[1], prep_axis[0])
 
         # measurement gate angles (measurement axis orthogonal to prep and rotation)
-        measurement_axis = np.cross(prep_axis, n_rotation)
+        measurement_axis = np.cross(n_rotation, prep_axis)
         measurement_axis = measurement_axis / np.linalg.norm(measurement_axis)
 
         # read out basis rotation
@@ -191,7 +191,7 @@ class OverUnderRotationAngle(BaseBenchmark):
             ndarray: Modeled prob_0 values at each m.
 
         """
-        return b * np.exp(-decay_rate * m) * np.cos(-theta_err * m + np.pi / 2) + a
+        return b * np.exp(-decay_rate * m) * np.cos(theta_err * m + np.pi / 2) + a
 
     def _analyze(self):
         """Analyze measurement data, fit the model, and compute rotation error.

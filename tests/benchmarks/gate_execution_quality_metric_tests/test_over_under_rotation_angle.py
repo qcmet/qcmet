@@ -43,10 +43,10 @@ def test_generate_circuits_metadata_and_length():
 
 def test_fit_func_simple():
     """fit_func matches manual formula for given parameters."""
-    a, b, decay, theta, phase = 0.1, 0.5, 0.2, 0.3, 0.4
+    a, b, decay, theta = 0.1, 0.5, 0.2, 0.3
     m = np.array([0, 1, 2, 3])
-    y = OverUnderRotationAngle.fit_func(m, a, b, decay, theta, phase)
-    expected = b * np.exp(-decay * m) * np.cos(theta * m + phase) + a
+    y = OverUnderRotationAngle.fit_func(m, a, b, decay, theta)
+    expected = b * np.exp(-decay * m) * np.cos(theta * m + np.pi / 2) + a
     assert np.allclose(y, expected)
 
 
