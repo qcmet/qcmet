@@ -303,6 +303,6 @@ class OverUnderRotationAngle(BaseBenchmark):
         axes.set_ylabel(r"$p_0$")
 
         axes.set_title(
-            rf"Fitting with error amount = {np.round(self.result['OverUnderRotationAngle'], 3)}$\pi$"
+            rf"Fitted over- under-rotation angle = {np.round(self.result['OverUnderRotationAngle'], 3)}$\pi$"
         )
         return axes.legend()
