@@ -18,7 +18,6 @@ if TYPE_CHECKING:
     from qcmet.core import FileManager
 
 import numpy as np
-import scipy as sp
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.circuit import Gate
 from qiskit.circuit.library import SXGate
@@ -169,8 +168,8 @@ class OverUnderRotationAngle(BaseBenchmark):
                     qc.barrier()
 
             # Measure qubit
-            qc.ry(theta_readout, 0)
-            qc.rz(phi_readout, 0)
+            qc.rz(-phi_readout, 0)
+            qc.ry(-theta_readout, 0)
 
             qc.measure_all()
             data.append(self._circ_with_metadata_dict(qc, m=m))
@@ -178,7 +177,7 @@ class OverUnderRotationAngle(BaseBenchmark):
         return data
 
     @staticmethod
-    def fit_func(m, a, b, decay_rate, theta_err, phase):
+    def fit_func(m, a, b, decay_rate, theta_err):
         """Model function for fitting prob_0 vs m.
 
         Args:
@@ -187,13 +186,12 @@ class OverUnderRotationAngle(BaseBenchmark):
             b (float): Amplitude scaling.
             decay_rate (float): Exponential decay constant.
             theta_err (float): Rotation angle error per pseudoidentity.
-            phase (float): Phase offset of the cosine.
 
         Returns:
             ndarray: Modeled prob_0 values at each m.
 
         """
-        return b * np.exp(-decay_rate * m) * np.cos(theta_err * m + phase) + a
+        return b * np.exp(-decay_rate * m) * np.cos(-theta_err * m + np.pi / 2) + a
 
     def _analyze(self):
         """Analyze measurement data, fit the model, and compute rotation error.
@@ -228,9 +226,14 @@ class OverUnderRotationAngle(BaseBenchmark):
                 f_xx[np.argmax(f_yy[1:] + 1)]
             )  # excluding the zero frequency "peak", which is related to offset
             guess_amp = np.std(self.experiment_data["p_0"]) * 2.0**0.5
-            guess_offset = np.min([np.mean(self.experiment_data["p_0"]), 0.5])
+
+            if self.experiment_data["p_0"][0] > self.experiment_data["p_0"][1]:
+                guess_sign = -1.0
+            else:
+                guess_sign = 1.0
+
             guess = np.array(
-                [guess_offset, guess_amp, 0.001, 2 * np.pi * guess_freq, np.pi]
+                [0.5, guess_amp, 0.001, guess_sign * 2 * np.pi * guess_freq]
             )
             popt, pcov = curve_fit(
                 self.fit_func,
@@ -246,12 +249,9 @@ class OverUnderRotationAngle(BaseBenchmark):
             raise e
 
         self.fit_result = {"fit_result": {"popt": popt, "pcov": pcov}}
-        fit_xxs = np.linspace(0, self.config["m_max"] + 1, 1000)
-        yys = self.fit_func(fit_xxs, *self.fit_result["fit_result"]["popt"])
 
-        sign = np.sign(np.gradient(yys))[0]
         self.fit_overrotation_amount = (
-            sign * popt[3] / (self.config["num_gates_for_id"])
+            np.sign(popt[1]) * popt[3] / (self.config["num_gates_for_id"])
         )
         self.run_id = self.file_manager.run_id if self.file_manager else None
 
