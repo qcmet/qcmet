@@ -31,7 +31,7 @@ class OverUnderRotationAngle(BaseBenchmark):
     r"""Benchmark to estimate coherent over-/under-rotation on one qubit.
 
     This benchmark generates a family of pseudoidentity circuits of length m,
-    measures the probability of state |0⟩ vs m, and fits the decay and oscillation
+    measures the probability of the ideal state vs m, and fits the decay and oscillation
     to extract the rotation-angle error per gate.  The fit model is
 
         prob_0(m) = a + b\*e^(–i\*decay_rate\*m)·cos(m\*theta_err + phase)
@@ -40,7 +40,7 @@ class OverUnderRotationAngle(BaseBenchmark):
         config (dict): Holds 'delta_m', 'm_max', 'num_gates_for_id', and 'm_array'.
         experiment_data (pd.DataFrame): Populated by BaseBenchmark after generate_circuits.
         fit_result (dict): Holds 'popt' and 'pcov' from curve_fit.
-        fit_overrotation_amount (float): Extracted angle error per SX gate, in units of π.
+        fit_overrotation_amount (float): Extracted angle error per rotation gate, in units of π.
 
     """
 
@@ -60,7 +60,7 @@ class OverUnderRotationAngle(BaseBenchmark):
             delta_m (int): Step size in repeat count m between pseudoidentity circuits.
             m_max (int): Maximum number of repeats (inclusive).
             gate (qiskit.circuit.Gate): Gate to measure over-under rotation
-            num_gates_for_id (int): Number of SX gates in each repeated pseudoidentity.
+            num_gates_for_id (int): Number of gates in each repeated pseudoidentity.
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
         """
