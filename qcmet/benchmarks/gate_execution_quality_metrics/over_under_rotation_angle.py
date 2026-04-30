@@ -75,14 +75,6 @@ class OverUnderRotationAngle(BaseBenchmark):
         self.config["num_gates_for_id"] = num_gates_for_id
         self.config["m_array"] = np.arange(0, m_max + 1, delta_m)
 
-        # check that repeating gate for the right number of times corresponds to id
-        assert np.allclose(
-            np.linalg.matrix_power(
-                self.config["gate"].to_matrix(), self.config["num_gates_for_id"]
-            ),
-            np.eye(2),
-        )
-
     def _check_num_gates_for_id(self, gate, num_gates_for_id):
         """Verify that repeating `gate` `num_gates_for_id` times equals identity.
 
