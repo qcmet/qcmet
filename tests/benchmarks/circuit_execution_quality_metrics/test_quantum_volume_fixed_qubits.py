@@ -113,7 +113,9 @@ def test_heavy_outputs():
         qc
     )  # ideal_heavy_outputs requires self.ideal_outputs
     ideal_heavy_outputs = ["00", "11"]
-    assert ideal_heavy_outputs == qv._get_heavy_outputs(ideal_outputs=ideal_outputs)
+    assert set(ideal_heavy_outputs) == set(
+        qv._get_heavy_outputs(ideal_outputs=ideal_outputs)
+    )
 
 
 def test_heavy_output_counts():

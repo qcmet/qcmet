@@ -195,11 +195,11 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
         else:
             pass
 
-        values = list(self.ideal_outputs.values())
-        median = statistics.median(values)
-        self.heavy_outputs = [
-            key for key, value in self.ideal_outputs.items() if value > median
-        ]
+        values = np.array(list(self.ideal_outputs.values()))
+        keys = list(self.ideal_outputs.keys())
+
+        sort_list = np.argsort(values)
+        self.heavy_outputs = [keys[i] for i in sort_list[len(sort_list) // 2 :]]
 
         return self.heavy_outputs
 
