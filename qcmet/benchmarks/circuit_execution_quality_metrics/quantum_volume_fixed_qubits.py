@@ -8,7 +8,6 @@ procedure follows M4.1 from arxiv:2502.06717
 
 from __future__ import annotations
 
-import statistics
 from typing import TYPE_CHECKING, List
 
 if TYPE_CHECKING:
