@@ -177,8 +177,7 @@ class CliffordRB(BaseBenchmark):
             self.config["m_list"],
             self.p_surv,
             maxfev=20000,
-            bounds=[(0.99, 0, 0), (1, 1, 1)], #changed 
-            #bounds=[(0, 0, 0), (1, 1, 1)],
+            bounds=[(0, 0, 0), (1, 1, 1)],
         )
 
         # calculating average gate error
