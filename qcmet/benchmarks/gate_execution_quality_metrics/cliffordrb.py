@@ -1,10 +1,9 @@
-"""Clifford Randomised Benchmarking Average Gate Error Metric.
+"""Interleaved Clifford Randomised Benchmarking Average Gate Error Metric.
 
-This module provides the Clifford randomised benchmarking average gate
+This module provides the Interleaved Clifford randomised benchmarking average gate
 error implementation for the QCMet framework. This metric provides an
-estimate of the average gate error of a set of single- and multi-qubit
-Clifford gates in a quantum computer. Here the benchmarking procedure
-follows M3.3 from arxiv:2502.06717
+estimate for the average gate error of a target Clifford gate in a gate set.
+Here the benchmarking procedure follows M3.4 from arxiv:2502.06717.
 """
 
 from __future__ import annotations
@@ -14,193 +13,210 @@ from typing import TYPE_CHECKING, List
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from qiskit import QuantumCircuit
+
     from qcmet.core import FileManager
-import numpy as np
-import qiskit.quantum_info as qi
-from qiskit import QiskitError, QuantumCircuit, QuantumRegister
-from qiskit.circuit.library import UnitaryGate
-from qiskit.circuit.random import random_clifford_circuit
-from qiskit.quantum_info import Clifford
-from scipy.optimize import curve_fit
 
-from qcmet.benchmarks import BaseBenchmark
+from qcmet.benchmarks import BaseBenchmark, CliffordRB
 
 
-class CliffordRB(BaseBenchmark):
-    """Implements Clifford Randomised Benchmarking Average Gate Error Metric.
+class InterleavedRB(BaseBenchmark):
+    """Implements Interleaved Clifford Randomised Benchmarking Average Gate Error Metric.
 
-    This class generates circuits with a sequence of Clifford gates,
-    measures the output, and computes the average gate error of the
-    device.
-
+    This class generates both standard Clifford RB circuits and interleaved Clifford
+    RB circuits, measures the output, and computes the average gate error of a
+    specific target Clifford gate.
     """
 
     def __init__(
         self,
         m_list: List[int],
+        target_clifford: QuantumCircuit,
         circs_per_m: int = 5,
         qubits: int | List[int] = 1,
-        target_clifford: QuantumCircuit | None = None,
+        seed: int | None = None,
         save_path: str | Path | FileManager | None = None,
+        fixed_a0: bool = False,
+        fixed_b0: bool = False,
+        fit_method: str = "two_step",
     ):
-        """Initialize the Clifford randomised benchmark.
+        """Initialize the Interleaved Clifford randomised benchmark.
+
+        CliffordRB interleaved and non-interleaved experiment instances are
+        constructed internally.
 
         Args:
-            m_list (List[int]): The list of sequence lengths to run the benchmark on.
-            circs_per_m (int): The number of circuits generated for a given sequence length m.
+            m_list (list): The list of sequence lengths to run the benchmark on.
+            target_clifford (QuantumCircuit): QuantumCircuit containing only the
+                target Clifford gate.
+            circs_per_m (int): The number of circuits generated for a given sequence
+                length m. Defaults to 5.
             qubits (int | List[int]): The number of qubits as either a list of qubit
-                indices or int specifying number of qubits.
-            target_clifford (QuantumCircuit, optional): QuantumCircuit containing only the
-                target Clifford gate. This is utilised for Interleaved Clifford Randomised
-                Benchmarking. To run Interleaved Clifford Randomised Benchmarking,
-                use 'InterleavedRB' Class.
-            save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
+                indices or an int specifying the number of qubits. Defaults to 1.
+            seed (int | None): Seed for reproducible random Clifford circuit generation.
+                If None, circuits are generated non-deterministically. Defaults to None.
+            save_path (str | Path | FileManager | None, optional): Directory path to
+                save results. Defaults to None.
+            fixed_a0 (bool): If True, constrain the amplitude using p_survival(0) = 1,
+                so that a0 = 1 - b0. This assumes no SPAM error. Defaults to False.
+            fixed_b0 (bool): If True, fix the baseline in the final fit to
+                1 / 2**num_qubits. If False, b0 is fitted in the final nonlinear fit.
+                Defaults to False.
+            fit_method (str): Fitting method passed to the internal CliffordRB
+                experiments. Options are:
+
+                - "two_step":
+                    First perform a log-linear fit using the ideal baseline
+                    b0 = 1 / 2**num_qubits to generate initial guesses. Then perform
+                    scipy.optimize.curve_fit using the model specified by fixed_a0
+                    and fixed_b0.
+
+                    If fixed_b0=False, the second nonlinear step fits b0.
+
+                - "curve_fit":
+                    Use nonlinear curve_fit directly with default initial guesses.
+
+                - "log":
+                    Use only the log-linear fit. This requires fixed_b0=True.
+
+                Defaults to "two_step".
 
         """
-        super().__init__("CliffordRB", qubits=qubits, save_path=save_path)
+        super().__init__("InterleavedRB", qubits=qubits, save_path=save_path)
+
+        if target_clifford is None:
+            raise ValueError("target_clifford needs to be specified.")
+
+        if fit_method not in {"two_step", "curve_fit", "log"}:
+            raise ValueError(
+                "fit_method must be one of 'two_step', 'curve_fit', or 'log'."
+            )
+
+        if fit_method == "log" and not fixed_b0:
+            raise ValueError("fit_method='log' requires fixed_b0=True.")
+
         self.config["m_list"] = m_list
+        self.config["seed"] = seed
         self.config["circs_per_m"] = circs_per_m
+        self.config["fixed_a0"] = fixed_a0
+        self.config["fixed_b0"] = fixed_b0
+        self.config["fit_method"] = fit_method
+        self.config["target_clifford"] = [
+            (gate, count) for gate, count in target_clifford.count_ops().items()
+        ]
 
-        if target_clifford is not None:
-            self.config["target_clifford"] = [
-                (gate, count) for gate, count in target_clifford.count_ops().items()
-            ]
-            try:
-                Clifford(target_clifford, validate=True)
-            except QiskitError as e:
-                raise ValueError("target_clifford is not a valid Clifford gate.") from e
+        self.rb_experiment = CliffordRB(
+            m_list=m_list,
+            circs_per_m=circs_per_m,
+            qubits=qubits,
+            seed=seed,
+            target_clifford=None,
+            save_path=save_path,
+            fixed_a0=self.config["fixed_a0"],
+            fixed_b0=self.config["fixed_b0"],
+            fit_method=self.config["fit_method"],
+        )
 
-        self.target_clifford = target_clifford
+        self.irb_experiment = CliffordRB(
+            m_list=m_list,
+            circs_per_m=circs_per_m,
+            qubits=qubits,
+            seed=seed,
+            target_clifford=target_clifford,
+            save_path=save_path,
+            fixed_a0=self.config["fixed_a0"],
+            fixed_b0=self.config["fixed_b0"],
+            fit_method=self.config["fit_method"],
+        )
 
     def _generate_circuits(self):
-        """Generate Clifford randomised benchmarking circuits.
+        """Generate circuits for interleaved and non-interleaved Clifford RB.
 
-        Each circuit is built with the following steps:
-            1. Apply a sequence of m randomly selected Clifford gates.
-            2. Apply a final gate which is the inverse of all previous Clifford gates.
-            3. Measure all qubits.
-
-        This procedure is carried out at each sequence length and repeated ncirc times.
-
-        In Interleaved Clifford Randomized Benchmarking, the key difference is that the
-        target Clifford gate is inserted after each randomly selected Clifford gate in the sequence.
+        Standard RB circuits are generated by self.rb_experiment.
+        Interleaved RB circuits are generated by self.irb_experiment.
 
         Returns:
             List[Dict]: Each dict contains:
                 'circuit' (QuantumCircuit): The full benchmark circuit.
 
         """
-        data = []
-        for m in self.config["m_list"]:
-            for _ in range(self.config["circs_per_m"]):
-                q_reg = QuantumRegister(self.num_qubits, name="q")
-                circ = QuantumCircuit(q_reg)
-                # applying clifford gates
-                for _ in range(m):
-                    circ = circ & random_clifford_circuit(
-                        num_qubits=self.num_qubits, num_gates=1
-                    )
-                    circ.barrier()
-                    if self.target_clifford is not None:
-                        circ = circ & self.target_clifford
-                        circ.barrier()
-                # applying inverse
-                inv = circ.inverse()
-                inv_matrix = qi.Operator(inv)
-                inv_gate = UnitaryGate(inv_matrix, label="Inverse")
-                circ.unitary(inv_gate, q_reg, label="Inverse")
+        rb_circs = self.rb_experiment._generate_circuits()
+        irb_circs = self.irb_experiment._generate_circuits()
 
-                circ.measure_all()
-                if self.target_clifford is not None:
-                    data.append(self._circ_with_metadata_dict(circ, m=m, type="IRB"))
-                else:
-                    data.append(self._circ_with_metadata_dict(circ, m=m, type="RB"))
+        self.rb_experiment._experiment_data = rb_circs
+        self.irb_experiment._experiment_data = irb_circs
 
-        return data
-
-    @staticmethod
-    def fit_func(m, alpha, a0, b0):
-        """Exponential decay fit function.
-
-         This is used for calculating the average gate error.
-
-        Args:
-            m (series): sequence length.
-            alpha (float): decay fitting parameter.
-            a0 (float): amplitude fitting parameter.
-            b0 (float): baseline fitting parameter.
-
-        Returns:
-            ndarray: fitting function datapoints.
-
-        """
-        return a0 * alpha**m + b0
+        return rb_circs + irb_circs
 
     def _analyze(self):
-        """Analyze measurement results average Clifford gate error metric.
+        """Analyze measurement results for the target Clifford gate error metric.
 
-        Transforms raw counts into survival probabilities, computes the average survival
-        probability for each sequence length m, then calculates the average gate error
-        and stores this value in a dictionary.
+        The circuit measurements of the interleaved and standard Clifford RB
+        experiments are used to calculate their respective decay parameters alpha_g
+        and alpha. These are then used to estimate the interleaved gate error.
 
         Returns:
             dict: {
               'qubits': int,
               'alpha': float,
-              'AverageGateError': float
-              'fit_results': {'popt': array, 'pcov': array}
+              'alpha_g': float,
+              'AverageGateError': str,
+              'InterleavedGateError': str,
+              'RB_fit': {'fit_result': {'popt': array, 'pcov': array}},
+              'IRB_fit': {'fit_result': {'popt': array, 'pcov': array}}
             }
 
         """
-        ground_state = "0" * self.num_qubits
-        for counts in self._experiment_data["circuit_measurements"].to_list():
-            if ground_state in counts.keys():
-                self._experiment_data["p_survival"] = self._experiment_data[
-                    "circuit_measurements"
-                ].apply(
-                    lambda x: x.get(ground_state) / self._runtime_params["num_shots"]
-                )
-                # calculating psurv
-            else:
-                self._experiment_data["p_survival"] = self._experiment_data[
-                    "circuit_measurements"
-                ].apply(lambda x: 0)
-                # calculating psurv = 0 if no counts in ground state
+        self.rb_experiment._runtime_params = self._runtime_params
+        self.irb_experiment._runtime_params = self._runtime_params
 
-        av_p_surv_df = (
-            self._experiment_data.groupby("m")["p_survival"].mean().reset_index()
-        )
-        self.p_surv = av_p_surv_df["p_survival"].to_list()
+        rb_data = self._experiment_data[self._experiment_data["type"] == "RB"].copy()
+        irb_data = self._experiment_data[self._experiment_data["type"] == "IRB"].copy()
 
-        popt, pcov = curve_fit(
-            self.fit_func,
-            self.config["m_list"],
-            self.p_surv,
-            maxfev=20000,
-            bounds=[(0, 0, 0), (1, 1, 1)],
-        )
+        if rb_data.empty:
+            raise ValueError("No RB measurement data found in experiment data.")
 
-        # calculating average gate error
-        alpha = popt[0]
+        if irb_data.empty:
+            raise ValueError("No IRB measurement data found in experiment data.")
+
+        self.rb_experiment._experiment_data = rb_data
+        self.irb_experiment._experiment_data = irb_data
+
+        self.rb_experiment.analyze()
+        self.irb_experiment.analyze()
+
+        alpha = float(self.rb_experiment.result["alpha"])
+        alpha_g = float(self.irb_experiment.result["alpha"])
+
+        if alpha == 0:
+            raise ValueError(
+                "Cannot calculate interleaved gate error because alpha is zero."
+            )
+
         d = 2**self.num_qubits
-        self.avg_gate_err = 1 - alpha - (1 - alpha) / d
 
-        self.fit_result = {"fit_result": {"popt": popt, "pcov": pcov}}
+        self.avg_gate_err = (1 - alpha) * (d - 1) / d
+        self.int_gate_err = (d - 1) * (1 - (alpha_g / alpha)) / d
 
         self.run_id = self.file_manager.run_id if self.file_manager else None
 
-        result = {
+        self.result = {
             "qubits": self.num_qubits,
-            "alpha": float(alpha),
-            "AverageGateError": self.avg_gate_err,
-        } | self.fit_result
+            "alpha": alpha,
+            "alpha_g": alpha_g,
+            "AverageGateError": "{:.6f}".format(self.avg_gate_err),
+            "InterleavedGateError": "{:.6f}".format(self.int_gate_err),
+            "RB_fit": self.rb_experiment.fit_result,
+            "IRB_fit": self.irb_experiment.fit_result,
+        }
 
-        return result
+        return self.result
 
     def _plot(self, axes):
         """Plot survival probability against sequence length.
 
-        Plot of survival probabilities and the fitted exponential decay function.
+        Plots the survival probabilities and fitted exponential decay functions for
+        both the standard and interleaved Clifford RB experiments.
 
         Args:
             axes (matplotlib.axes.Axes): Axes to draw the plots on.
@@ -209,34 +225,10 @@ class CliffordRB(BaseBenchmark):
             matplotlib.legend.Legend: Legend for the plot.
 
         """
-        if self.target_clifford is None:
-            colour = "black"
-            type = "RB"
-        elif self.target_clifford is not None:
-            colour = "green"
-            type = "IRB"
-
-        axes.plot(
-            self.config["m_list"],
-            self.p_surv,
-            linestyle="",
-            marker="x",
-            c=colour,
-            label=f"{self._runtime_params['device'].name} {type} results",
-        )
-        fit_xxs = np.linspace(0, (max(self.config["m_list"])) + 1, 1000)
-
-        axes.plot(
-            fit_xxs,
-            self.fit_func(fit_xxs, *self.fit_result["fit_result"]["popt"]),
-            linestyle="--",
-            marker="",
-            c=colour,
-            label="Fitted equation",
-        )
         axes.set_xlim((0, max(self.config["m_list"])))
         axes.set_ylim((1 / 2**self.num_qubits - 0.05, 1))
-        axes.set_xlabel(r"$m$")
-        axes.set_ylabel(r"$p_0$")
+
+        self.rb_experiment._plot(axes)
+        self.irb_experiment._plot(axes)
 
         return axes.legend()
