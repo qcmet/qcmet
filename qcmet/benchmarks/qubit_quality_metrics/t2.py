@@ -404,8 +404,8 @@ class T2(BaseBenchmark):
             y_data,
             color="black",
             marker="x",
-            label="Measurement results",
+            label="Measurements",
         )
-        axes.plot(x_to_fit, fitted_probs, color="black", ls="--", label="Fitted curve")
+        axes.plot(x_to_fit, fitted_probs, color="black", ls="--", label="Fitted equation")
         axes.set_title(f"T2 Measurement - {title_suffix}")
         axes.legend()

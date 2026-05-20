@@ -293,7 +293,7 @@ class QuantumVolumeFixedQubits(BaseBenchmark):
                 max(self._experiment_data["p_h"]),
                 0.02,
             ),
-            label=f"{self._runtime_params['device'].name}",
+            label="Measurements",
             orientation="horizontal",
             color="lightgrey",
         )

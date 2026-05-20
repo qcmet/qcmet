@@ -256,7 +256,7 @@ class QFT(BaseBenchmark):
             x_range,
             self.experiment_data["ordered_probs"][0],
             width=0.5,
-            label=f"{self._runtime_params['device'].name} results",
+            label="Measurements",
             color="black",
             alpha=0.6,
         )

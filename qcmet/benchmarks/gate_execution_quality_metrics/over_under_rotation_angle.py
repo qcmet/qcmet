@@ -230,7 +230,7 @@ class OverUnderRotationAngle(BaseBenchmark):
             linestyle="",
             marker="x",
             c="black",
-            label=f"{self._runtime_params['device'].name}",
+            label="Measurements",
         )
         fit_xxs = np.linspace(0, self.config["m_max"] + 1, 1000)
         axes.plot(

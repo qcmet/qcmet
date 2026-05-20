@@ -533,7 +533,7 @@ class CycleBenchmarking(BaseBenchmark):
             cycle_fidelities,
             color="black",
             marker="x",
-            label="Measured fidelity",
+            label="Measurements",
         )
 
         # If using fit method, plot the fitted curve
