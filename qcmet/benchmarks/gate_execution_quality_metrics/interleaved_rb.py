@@ -5,7 +5,7 @@ error implementation for the QCMet framework. This metric provides an
 estimate for the average gate error of a target Clifford gate in a gate set.
 Here the benchmarking procedure follows M3.4 from arxiv:2502.06717.
 """
-``
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, List
