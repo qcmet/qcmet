@@ -148,7 +148,7 @@ class T1(BaseBenchmark):
 
         self.measurements_to_probabilities()
         self._experiment_data["p_1"] = self.experiment_data["meas_prob"].apply(
-            lambda x: x.get("1")
+            lambda x: x.get("1",0)
         )
         try:
             popt, pcov = curve_fit(
