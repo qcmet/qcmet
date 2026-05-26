@@ -104,7 +104,7 @@ def test_analyze_noisy(qubits, target_gate, request):
         target_clifford=request.getfixturevalue(target_gate),
     )
     experiment.generate_circuits()
-    noisy_sim = qcm.NoisySimulator()
+    noisy_sim = qcm.NoisySimulator(seed_simulator=42)
     experiment.run(device=noisy_sim, num_shots=100)
     experiment.analyze()
 
@@ -188,5 +188,5 @@ def test_directory_structure_created(qubits, target_gate, request):
 
     # Check expected subdirectories
     for sub in ["rb", "irb"]:
-        p = experiment.file_manager.base_path/ "InterleavedRB_sub_results" / sub
+        p = experiment.file_manager.base_path / "InterleavedRB_sub_results" / sub
         assert p.exists() and p.is_dir()
