@@ -33,6 +33,7 @@ from pygsti.io import (
     write_empty_protocol_data,
 )
 from pygsti.report import reportables as rptbl
+from pygsti.tools import optools
 from qiskit.qasm2 import loads
 
 from qcmet.benchmarks import BaseBenchmark
@@ -448,7 +449,7 @@ class GST(BaseBenchmark):
 
         for gate in gates:
             results[f"Process Fidelity Gate:{gate}"] = float(
-                rptbl.entanglement_fidelity(
+                optools.entanglement_fidelity(
                     self._ideal_model[gate], fitted[gate], basis
                 )
             )
