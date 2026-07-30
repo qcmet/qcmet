@@ -503,14 +503,22 @@ class BaseBenchmark(ABC):
         else:
             raise ValueError("Save path not specified. Use self.set_save_path()")
 
-    def set_save_path(self, save_path: str | Path):
+    def set_save_path(self, save_path: str | Path | FileManager):
         """Set benchmark save path if not set in class constructor.
 
         Args:
-            save_path (str | Path): path to create bencmark output save folder
+            save_path (str | Path | FileManager): Path or file manager used to save
+                benchmark outputs.
 
         """
-        self.save_path = Path(save_path)
+        if isinstance(save_path, FileManager):
+            self.file_manager = save_path
+            self.save_path = save_path.base_path
+        elif isinstance(save_path, (str, Path)):
+            self.save_path = Path(save_path)
+            self.file_manager = FileManager(self.name, self.save_path)
+        else:
+            raise TypeError("save_path must be a str, Path, or FileManager")
         self.save_enabled = True
 
     def _hash_circuit(self, circuit) -> str:
