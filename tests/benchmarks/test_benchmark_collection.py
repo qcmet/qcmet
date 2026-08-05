@@ -29,11 +29,6 @@ class DummyBenchmarkWithPlotting(BaseBenchmark):
     def _plot(self, axes):
         return axes
 
-    def save(self):
-        """Mock save function."""
-        self._experiment_data = {}
-        self._experiment_data["saved"] = True
-
 
 class DummyBenchmark2Qubits(BaseBenchmark):
     """Concrete BaseBenchmark without plotting for testing BenchmarkCollection methods."""
@@ -49,11 +44,6 @@ class DummyBenchmark2Qubits(BaseBenchmark):
         c0 = self._experiment_data["circuit_measurements"].iloc[0]
         c1 = self._experiment_data["circuit_measurements"].iloc[1]
         return {"circuit0": c0, "circuit1": c1}
-
-    def save(self):
-        """Mock save function."""
-        self._experiment_data = {}
-        self._experiment_data["saved"] = True
 
 
 @pytest.fixture
@@ -202,13 +192,35 @@ def test_plot_with_wrong_axes_list(benchmark_collection_instance):
         benchmark_collection_instance.plot(axes)
 
 
-def test_save(benchmark_collection_instance):
-    """Verify that save correctly calls the save function of each sub-benchmark."""
-    benchmark_collection_instance.set_save_path("test")
-    benchmark_collection_instance.save()
-    assert (
-        benchmark_collection_instance._benchmarks[0]._experiment_data["saved"] is True
-    )
-    assert (
-        benchmark_collection_instance._benchmarks[1]._experiment_data["saved"] is True
-    )
+@pytest.mark.parametrize("set_path_after_init", [False, True])
+def test_save_path_propagates_to_benchmarks(tmp_path, set_path_after_init):
+    """Verify constructor and setter save paths persist collection outputs."""
+    benchmarks = {
+        "first": DummyBenchmarkWithPlotting("Dummy1", 1),
+        "second": DummyBenchmarkWithPlotting("Dummy2", 1),
+    }
+    save_path = None if set_path_after_init else tmp_path
+    benchmark_collection = BenchmarkCollection(benchmarks, save_path=save_path)
+    if set_path_after_init:
+        benchmark_collection.set_save_path(tmp_path)
+
+    benchmark_collection.generate_circuits()
+    benchmark_collection.run(IdealSimulator(), num_shots=100)
+    benchmark_collection.analyze()
+
+    collection_run_path = benchmark_collection.file_manager.run_path
+    assert (collection_run_path / "results" / "result.json").exists()
+    assert (collection_run_path / "results" / "plots" / "plot.png").exists()
+
+    for label, benchmark in benchmarks.items():
+        assert benchmark.save_enabled
+        assert benchmark.file_manager.base_path == collection_run_path / label
+        assert benchmark.file_manager.run_id == benchmark_collection.file_manager.run_id
+        assert (benchmark.file_manager.get_data_path() / "dataframe.pkl").exists()
+        assert (
+            benchmark.file_manager.get_config_path() / "experiment_config.json"
+        ).exists()
+        assert (benchmark.file_manager.get_results_path() / "result.json").exists()
+        assert (benchmark.file_manager.get_plots_path() / "plot.png").exists()
+
+    plt.close("all")

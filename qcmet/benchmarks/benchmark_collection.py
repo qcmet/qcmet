@@ -38,7 +38,9 @@ class BenchmarkCollection(BaseBenchmark):
                 The label of each benchmark will be created in the format of
                 "Benchmark{index}_{benchmark.name}" if no identifiers provided or
                 as "identifier" if the benchmarks are passed in as a dictionary.
-            save_path (str | Path | FileManager, optional): Path to save benchmark outputs. Defaults to None.
+            save_path (str | Path | FileManager, optional): Path to save benchmark
+                outputs for all benchmarks. This overrides the save paths of the
+                contained benchmarks. Defaults to None.
 
         """
         super().__init__("BenchmarkCollection", qubits=[], save_path=save_path)
@@ -53,8 +55,34 @@ class BenchmarkCollection(BaseBenchmark):
             self._benchmark_labels = list(benchmarks.keys())
             self._benchmarks = list(benchmarks.values())
 
+        if self.save_enabled:
+            self._set_benchmark_save_paths()
+
         self._num_circs_per_benchmark = []
         self._runtime_params = None
+
+    def _set_benchmark_save_paths(self):
+        """Place each benchmark's outputs under the collection run directory."""
+        for label, benchmark in zip(
+            self._benchmark_labels, self._benchmarks, strict=True
+        ):
+            file_manager = FileManager(
+                benchmark.name,
+                self.file_manager.run_path / label,
+                run_id=self.file_manager.run_id,
+            )
+            benchmark.set_save_path(file_manager)
+
+    def set_save_path(self, save_path: str | Path | FileManager):
+        """Set the collection and contained benchmark save paths.
+
+        Args:
+            save_path (str | Path | FileManager): Path or file manager used to save
+                collection outputs.
+
+        """
+        super().set_save_path(save_path)
+        self._set_benchmark_save_paths()
 
     @property
     def num_qubits(self) -> Dict:
@@ -132,7 +160,9 @@ class BenchmarkCollection(BaseBenchmark):
                     .reset_index(drop=True)
                     .copy()
                 )["circuit_measurements"]
-                benchmark._experiment_data["circuit_measurements"] = circuit_measurements
+                benchmark._experiment_data["circuit_measurements"] = (
+                    circuit_measurements
+                )
                 benchmark._runtime_params = self._runtime_params
                 prev_num_circs += num_circs
 
@@ -173,12 +203,14 @@ class BenchmarkCollection(BaseBenchmark):
             self._benchmark_labels[self._benchmarks.index(b)]
             for b in benchmarks_with_plotting
         ]
-        if axes is not None:
+        if axes is not None and isinstance(axes, (list, np.ndarray)):
             if len(axes) != len(benchmarks_with_plotting):
                 raise ValueError(
                     "The length of axes list must be equal to the number of "
                     "benchmarks with plotting implemented."
                 )
+        elif axes is not None and len(benchmarks_with_plotting) == 1:
+            axes = [axes]
         else:
             figsize = matplotlib.rcParams["figure.figsize"]
             _, axes = plt.subplots(

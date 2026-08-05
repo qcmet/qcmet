@@ -194,6 +194,20 @@ def test_init_with_save_path_variants(tmp_path, tmp_file_manager):
     assert bench_fm.file_manager is fm
 
 
+def test_set_save_path_initializes_file_manager(tmp_path):
+    """Verify set_save_path creates a usable file manager."""
+    bench = DummyBenchmark(name="save_test", qubits=1)
+
+    bench.set_save_path(tmp_path)
+
+    assert bench.save_enabled
+    assert isinstance(bench.file_manager, FileManager)
+    assert bench.file_manager.base_path == tmp_path
+    bench._experiment_data = pd.DataFrame({"value": [1]})
+    bench.save()
+    assert (bench.file_manager.get_data_path() / "dataframe.pkl").exists()
+
+
 def test_has_plotting_and_default_plot(capsys):
     """Check that has_plotting() is False by default and plot() prints awarning."""
     bench = DummyBenchmark(name="plotting_test", qubits=1)
