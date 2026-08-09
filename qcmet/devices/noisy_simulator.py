@@ -167,19 +167,20 @@ class NoisySimulator(AerSimulator):
         noise_model.add_all_qubit_quantum_error(error_1q, ["sx"], warnings=False)
 
         if self.thermal_relaxation:
+            noise_model.add_all_qubit_quantum_error(
+                thermal_relax_error_1q, ["sx"], warnings=False
+            )
+            noise_model.add_all_qubit_quantum_error(
+                thermal_relax_error_1q, ["id"], warnings=False
+            )
             for j in range(self.num_qubits):
-                noise_model.add_quantum_error(
-                    thermal_relax_error_1q, "id", [j], warnings=False
-                )
-                noise_model.add_quantum_error(
-                    thermal_relax_error_1q, "sx", [j], warnings=False
-                )
                 for k in range(self.num_qubits):
-                    noise_model.add_quantum_error(
-                        thermal_relax_error_1q.expand(thermal_relax_error_1q),
-                        "cx",
-                        [j, k],
-                    )
+                    if j != k:
+                        noise_model.add_quantum_error(
+                            thermal_relax_error_1q.expand(thermal_relax_error_1q),
+                            "cx",
+                            [j, k],
+                        )
 
         noise_model.add_all_qubit_quantum_error(error_2q, ["cx"], warnings=False)
         noise_model.add_all_qubit_quantum_error(
