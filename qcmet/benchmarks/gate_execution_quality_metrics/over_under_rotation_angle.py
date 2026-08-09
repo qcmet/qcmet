@@ -10,7 +10,7 @@ rotation error.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,7 +30,7 @@ class OverUnderRotationAngle(BaseBenchmark):
     r"""Benchmark to estimate coherent over-/under-rotation on one qubit.
 
     This benchmark generates a family of pseudoidentity circuits of length m,
-    measures the probability of state |0⟩ vs m, and fits the decay and oscillation
+    measures the probability of the ideal state vs m, and fits the decay and oscillation
     to extract the rotation-angle error per gate.  The fit model is
 
         prob_0(m) = a + b\*e^(–i\*decay_rate\*m)·cos(m\*theta_err + phase)
@@ -39,13 +39,13 @@ class OverUnderRotationAngle(BaseBenchmark):
         config (dict): Holds 'delta_m', 'm_max', 'num_gates_for_id', and 'm_array'.
         experiment_data (pd.DataFrame): Populated by BaseBenchmark after generate_circuits.
         fit_result (dict): Holds 'popt' and 'pcov' from curve_fit.
-        fit_overrotation_amount (float): Extracted angle error per SX gate, in units of π.
+        fit_overrotation_amount (float): Extracted angle error per rotation gate, in units of π.
 
     """
 
     def __init__(
         self,
-        qubits: int | List[int] = 1,
+        qubit_index: int = 0,
         delta_m: int = 20,
         gate: Gate = SXGate,
         m_max: int = 200,
@@ -55,16 +55,17 @@ class OverUnderRotationAngle(BaseBenchmark):
         """Initialize the OverUnderRotationAngle benchmark.
 
         Args:
+            qubit_index (int): The qubit index for routing. Defaults to 0.
             delta_m (int): Step size in repeat count m between pseudoidentity circuits.
             m_max (int): Maximum number of repeats (inclusive).
-            qubits (int | List[int]): The number of qubits as either a list of qubit
-                indices or int specifying number of qubits.
             gate (qiskit.circuit.Gate): Gate to measure over-under rotation
-            num_gates_for_id (int): Number of SX gates in each repeated pseudoidentity.
+            num_gates_for_id (int): Number of gates in each repeated pseudoidentity.
             save_path (str | Path | FileManager | None, optional): Directory path to save results. Defaults to None.
 
         """
-        super().__init__("OverUnderRotationAngle", qubits=qubits, save_path=save_path)
+        super().__init__(
+            "OverUnderRotationAngle", qubits=[qubit_index], save_path=save_path
+        )
 
         self._check_num_gates_for_id(gate, num_gates_for_id)
         self.config["delta_m"] = delta_m
@@ -109,12 +110,54 @@ class OverUnderRotationAngle(BaseBenchmark):
 
         """
         data = []
+
+        # Get the angles for rotating the qubit into the right frame
+
+        # Get rotation axis to prepare qubit orthogonally to it
+        U = self.config["gate"].to_matrix()
+        U = U / np.sqrt(np.linalg.det(U))
+
+        sx = np.array([[0, 1], [1, 0]], complex)
+        sy = np.array([[0, -1j], [1j, 0]], complex)
+        sz = np.array([[1, 0], [0, -1]], complex)
+
+        n_rotation = np.array(
+            [
+                np.imag(np.trace(U @ sx)),
+                np.imag(np.trace(U @ sy)),
+                np.imag(np.trace(U @ sz)),
+            ]
+        )
+
+        n_rotation = n_rotation / np.linalg.norm(n_rotation)
+
+        # create an orthogonal Bloch vector
+        ref = np.array([0, 0, 1])
+        if abs(np.dot(n_rotation, ref)) > 0.9:
+            ref = np.array([0, 1, 0])
+        prep_axis = np.cross(n_rotation, ref)
+
+        prep_axis = prep_axis / np.linalg.norm(prep_axis)
+
+        # preparation gate angles
+        theta_prep = np.acos(prep_axis[2])
+        phi_prep = np.atan2(prep_axis[1], prep_axis[0])
+
+        # measurement gate angles (measurement axis orthogonal to prep and rotation)
+        measurement_axis = np.cross(n_rotation, prep_axis)
+        measurement_axis = measurement_axis / np.linalg.norm(measurement_axis)
+
+        # read out basis rotation
+        theta_readout = np.acos(measurement_axis[2])
+        phi_readout = np.atan2(measurement_axis[1], measurement_axis[0])
+
         for m in self.config["m_array"]:
             quantum_reg = QuantumRegister(self.num_qubits)
             qc = QuantumCircuit(quantum_reg)
-            # Prepare qubit on the equator of bloch sphere
-            qc.sx(0)
-            qc.rz(np.pi, 0)
+
+            qc.ry(theta_prep, 0)
+            qc.rz(phi_prep, 0)
+
             # Repeat pseudoidentity m times
             for _ in range(m):
                 # Pseudoidentity formed by repeating sx gate 4 times
@@ -123,14 +166,18 @@ class OverUnderRotationAngle(BaseBenchmark):
                         self.config["gate"], np.arange(0, len(self.qubits)).tolist()
                     )
                     qc.barrier()
-            # Measure qubit (state preparation step inversion not needed)
+
+            # Measure qubit
+            qc.rz(-phi_readout, 0)
+            qc.ry(-theta_readout, 0)
+
             qc.measure_all()
             data.append(self._circ_with_metadata_dict(qc, m=m))
 
         return data
 
     @staticmethod
-    def fit_func(m, a, b, decay_rate, theta_err, phase):
+    def fit_func(m, a, b, decay_rate, theta_err):
         """Model function for fitting prob_0 vs m.
 
         Args:
@@ -139,13 +186,12 @@ class OverUnderRotationAngle(BaseBenchmark):
             b (float): Amplitude scaling.
             decay_rate (float): Exponential decay constant.
             theta_err (float): Rotation angle error per pseudoidentity.
-            phase (float): Phase offset of the cosine.
 
         Returns:
             ndarray: Modeled prob_0 values at each m.
 
         """
-        return b * np.exp(-decay_rate * m) * np.cos(theta_err * m + phase) + a
+        return b * np.exp(-decay_rate * m) * np.cos(theta_err * m + np.pi / 2) + a
 
     def _analyze(self):
         """Analyze measurement data, fit the model, and compute rotation error.
@@ -180,9 +226,14 @@ class OverUnderRotationAngle(BaseBenchmark):
                 f_xx[np.argmax(f_yy[1:] + 1)]
             )  # excluding the zero frequency "peak", which is related to offset
             guess_amp = np.std(self.experiment_data["p_0"]) * 2.0**0.5
-            guess_offset = np.min([np.mean(self.experiment_data["p_0"]), 0.5])
+
+            if self.experiment_data["p_0"][0] > self.experiment_data["p_0"][1]:
+                guess_sign = -1.0
+            else:
+                guess_sign = 1.0
+
             guess = np.array(
-                [guess_offset, guess_amp, 0.001, 2 * np.pi * guess_freq, np.pi]
+                [0.5, guess_amp, 0.001, guess_sign * 2 * np.pi * guess_freq]
             )
             popt, pcov = curve_fit(
                 self.fit_func,
@@ -198,12 +249,9 @@ class OverUnderRotationAngle(BaseBenchmark):
             raise e
 
         self.fit_result = {"fit_result": {"popt": popt, "pcov": pcov}}
-        fit_xxs = np.linspace(0, self.config["m_max"] + 1, 1000)
-        yys = self.fit_func(fit_xxs, *self.fit_result["fit_result"]["popt"])
 
-        sign = np.sign(np.gradient(yys))[0]
         self.fit_overrotation_amount = (
-            sign * popt[3] / (self.config["num_gates_for_id"])
+            np.sign(popt[1]) * popt[3] / (self.config["num_gates_for_id"])
         )
         self.run_id = self.file_manager.run_id if self.file_manager else None
 
@@ -247,6 +295,6 @@ class OverUnderRotationAngle(BaseBenchmark):
         axes.set_ylabel(r"$p_0$")
 
         axes.set_title(
-            rf"Fitting with error amount = {np.round(self.result['OverUnderRotationAngle'], 3)}$\pi$"
+            rf"Fitted over- under-rotation angle = {np.round(self.result['OverUnderRotationAngle'], 3)}$\pi$"
         )
         return axes.legend()
