@@ -53,7 +53,7 @@ exclude = ["tutorials", "_helpers"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "C","D"]
-ignore = ["E501", "D203", "D213"]
+ignore = ["E501", "D203", "D213", "B905"]
 [tool.ruff.lint.mccabe]
 max-complexity = 12
 
