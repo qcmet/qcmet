@@ -129,3 +129,10 @@ def test_analyze_with_noisy_simulator(upper_bound_on_vd_instance):
     upper_bound_on_vd_instance.run(device, num_shots=1000)
     result = upper_bound_on_vd_instance.analyze()
     assert 0 <= result["fails"] <= result["total"]
+
+def test_num_trap_circuits_matches_paper_formula():
+    """V = ceil(2 ln(2/(1-eta)) / mu^2) (paper, M4.4)."""
+    circuit = QuantumCircuit(2)
+    circuit.cz(0, 1)
+    vd = UpperBoundOnVD(circuit, mu=0.1, eta=0.95)
+    assert vd.config["num_trap_circuits"] == 738

@@ -68,7 +68,7 @@ class UpperBoundOnVD(BaseBenchmark):
         self.config["eta"] = eta
         self.config["qubits"] = self.qubits
         self.config["num_trap_circuits"] = int(
-            np.ceil(2 * np.log((2 / (1 - eta)) / mu**2))
+            np.ceil(2 * np.log((2 / (1 - eta)))/ mu**2)
         )
 
         if seed is None:
